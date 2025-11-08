@@ -309,6 +309,7 @@ function writeHash(s) {
 
 function mirror(s) {
     const el = document.getElementById('game-container');
+    el.style.whiteSpace = 'pre';
     if (!el) return;
     const lines = [];
     if (waitingStart) lines.push('Press SPACE to start\n\n');
