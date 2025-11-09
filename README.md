@@ -1,4 +1,4 @@
-# 𐂃 Horse Jump — URL Bar Runner
+# 𐂃 Tiny Horse, Tiny Jump — URL Bar Runner
 
 This is a tiny runner game inspired by (URL Snake)[https://demian.ferrei.ro/snake] by (Demian Ferreiro)[https://demian.ferrei.ro/] that renders directly into the URL hash using Braille characters. 
 

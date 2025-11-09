@@ -538,7 +538,7 @@ function mirror(s) {
             __shareBound = true;
             btn.addEventListener('click', async () => {
                 try {
-                    const message = `Try to beat my tiny horse (high score: ${highScore})! https://diego.horse/jump`;
+                    const message = `[⠤⠤𐂃⠤⠤⠴ ⠤⠤] Try to beat my tiny horse (my score: ${highScore})! https://diego.horse/jump`;
                     if (navigator.clipboard && navigator.clipboard.writeText) {
                         await navigator.clipboard.writeText(message);
                         const old = btn.textContent;
