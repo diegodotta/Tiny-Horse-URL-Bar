@@ -14,11 +14,10 @@
 
 /* Panels */
 .game .panel {
-  border: 1px solid #e5e5e5;
   border-radius: 8px;
   padding: 12px 14px;
   margin: 10px 0;
-  background: color-mix(in srgb, var(--wp--preset--color--theme-1) 95%, var(--wp--preset--color--theme-6) 5%);
+  background: rgba(150,150,150,0.1);
 }
 
 /* URL mimic line */
@@ -90,7 +89,7 @@
   .mobile-only {
     display: none;
   }
-  /* .game #url { display: none; } */
+  .game #url { display: none; }
 }
 
 /* Hidden input to summon mobile keyboard */
