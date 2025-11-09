@@ -1,6 +1,8 @@
 # 𐂃 Horse Jump — URL Bar Runner
 
-This is a tiny runner game inspired by https://urlsnake.com/ that renders directly into the URL hash using Braille characters. Jump across holes, spikes, gators, ride platforms, and avoid ceilings while the scene streams in your address bar.
+This is a tiny runner game inspired by (URL Snake)[https://demian.ferrei.ro/snake] by (Demian Ferreiro)[https://demian.ferrei.ro/] that renders directly into the URL hash using Braille characters. 
+
+Jump across holes, spikes, gators, ride platforms, and avoid ceilings while the scene streams in your address bar.
 
 ## Play
 - Open https://diego.horse/jump
