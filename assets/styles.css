@@ -5,7 +5,6 @@
   margin: 0;
   padding: 20px;
   font-family: var(--font);
-  color: #111;
 }
 
 .game h1 {
@@ -19,7 +18,7 @@
   border-radius: 8px;
   padding: 12px 14px;
   margin: 10px 0;
-  background: #fafafa;
+  background: color-mix(in srgb, var(--wp--preset--color--theme-1) 95%, var(--wp--preset--color--theme-6) 5%);
 }
 
 /* URL mimic line */
@@ -37,14 +36,11 @@
 
 .game #url:before {
   content: "🌐";
-  color: #ccc;
+  opacity: 0.5;
 }
 
 .game #url-text {
   white-space: pre;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
   flex: 1 1 auto;
 }
 
@@ -94,7 +90,7 @@
   .mobile-only {
     display: none;
   }
-  .game #url { display: none; }
+  /* .game #url { display: none; } */
 }
 
 /* Hidden input to summon mobile keyboard */
