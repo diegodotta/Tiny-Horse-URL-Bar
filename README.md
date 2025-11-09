@@ -1,12 +1,19 @@
 # 𐂃 Horse Jump — URL Bar Runner
 
-A tiny runner game that renders directly into the URL hash using Braile characters. Jump across holes, spikes, gators, ride platforms, and avoid ceilings while the scene streams in your address bar. Inspired by https://urlsnake.com/.
+This is a tiny runner game inspired by https://urlsnake.com/ that renders directly into the URL hash using Braille characters. Jump across holes, spikes, gators, ride platforms, and avoid ceilings while the scene streams in your address bar.
 
 ## Play
 - Open https://diego.horse/jump
+
+Desktop
 - Press SPACE to start.
 - Press SPACE to jump.
-- Press R to restart (auto-starts the loop after reset).
+- Press R to restart (auto-starts immediately).
+
+Mobile
+- Tap to start.
+- Tap to jump.
+- Tap after Game Over to restart (auto-starts).
 
 ## Core Rules
 - Player sits at a fixed position in the scene and the world scrolls left.
@@ -44,6 +51,15 @@ The game ramps up using level configs:
 
 Edit `LEVELS` and `LEVEL_THRESHOLDS` in `game.js` to tune difficulty.
 
+## Scoring
+- Score increases each tick you survive.
+- High score persists in your browser via localStorage and is shown below the score.
+- The "Share Score" button shares your current high score.
+
+## URL Bar / Mobile UI
+- On desktop, the game renders into your URL bar (window.location.hash).
+- On mobile, because the URL bar is not always visible, the page shows a mirror panel of the scene and uses a hidden input to trigger the soft keyboard when needed.
+
 ## Dev Notes
 - Code split:
   - `index.html` — shell page and container
@@ -54,6 +70,10 @@ Edit `LEVELS` and `LEVEL_THRESHOLDS` in `game.js` to tune difficulty.
 ## Local Development
 - No build needed. Just open `index.html`.
 
+
+## Credits
+Built by [Diego Dotta](https://diego.horse) with [Windsurf](https://windsurf.com/refer?referral_code=oy0hdqpvkz4b88ng)
+Soundtrack by [Buttlee](https://onlinesequencer.net/1813336)
 
 ## License
 MIT
