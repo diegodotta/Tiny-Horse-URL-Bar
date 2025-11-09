@@ -12,7 +12,7 @@ const isMobile = typeof window !== 'undefined' && window.matchMedia && window.ma
 const isSafari = typeof navigator !== 'undefined' && /safari/i.test(navigator.userAgent) && !/chrome|chromium|crios|edg/i.test(navigator.userAgent);
 let __mobileInit = false;
 
-const SCENE_LENGTH = isMobile ? 25 : 40;
+const SCENE_LENGTH = isMobile ? 30 : 40;
 const PLAYER_POS = 3; // fixed player position in the scene
 const GROUND_CHAR = '⠤';
 const HOLE_CHAR = '_'; // Braille blank U+2800
@@ -252,8 +252,6 @@ function resetGame() {
         preStartBlinkRafId = requestAnimationFrame(preFrame);
     };
     preStartBlinkRafId = requestAnimationFrame(preFrame);
-
-    if (isMobile) ensureMobileKeyboardFocus();
 }
 
 function startGameLoop() {
@@ -705,40 +703,22 @@ window.onload = () => {
     initMobileControls();
 };
 
-function ensureMobileKeyboardFocus() {
-    const el = document.getElementById('mobile-key');
-    if (!el) return;
-    try { el.focus({ preventScroll: true }); } catch (e) { try { el.focus(); } catch (e2) {} }
-}
-
 function initMobileControls() {
-    if (!isMobile || __mobileInit) return;
+    if (__mobileInit) return;
     __mobileInit = true;
-    const el = document.getElementById('mobile-key');
-    if (!el) return;
-    ensureMobileKeyboardFocus();
-    document.addEventListener('touchstart', () => {
-        ensureMobileKeyboardFocus();
+    const btn = document.getElementById('mobile-jump-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
         if (gameOver) {
             resetGame();
+            startGameLoop();
             return;
         }
         if (waitingStart) {
             startGameLoop();
             startJump();
-        } else {
-            startJump();
+            return;
         }
-    }, { passive: true });
-    el.addEventListener('input', () => {
-        if (gameOver) {
-            resetGame();
-        } else if (waitingStart) {
-            startGameLoop();
-            startJump();
-        } else {
-            startJump();
-        }
-        el.value = '';
+        startJump();
     });
 }

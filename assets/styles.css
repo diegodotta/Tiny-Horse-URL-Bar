@@ -3,7 +3,6 @@
 .game {
   --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   margin: 0;
-  padding: 20px;
   font-family: var(--font);
 }
 
@@ -108,5 +107,16 @@
   height: 1px;
   opacity: 0;
   pointer-events: none;
+}
+
+
+/* Mobile jump controls */
+.game .controls {
+  display: flex;
+}
+.game .controls .icon-btn {
+  width: 100%;
+  padding: 12px 16px;
+  font-weight: 600;
 }
 
