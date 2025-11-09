@@ -59,7 +59,7 @@ Edit `LEVELS` and `LEVEL_THRESHOLDS` in `game.js` to tune difficulty.
 ## URL Bar / Mobile UI
 - On desktop, the game renders into your URL bar (window.location.hash).
 - On mobile, because the URL bar is not always visible, the page shows a mirror panel of the scene and uses a hidden input to trigger the soft keyboard when needed.
-
+s
 ## Dev Notes
 - Code split:
   - `index.html` — shell page and container
@@ -73,6 +73,7 @@ Edit `LEVELS` and `LEVEL_THRESHOLDS` in `game.js` to tune difficulty.
 
 ## Credits
 Built by [Diego Dotta](https://diego.horse) with [Windsurf](https://windsurf.com/refer?referral_code=oy0hdqpvkz4b88ng)
+
 Soundtrack by [Buttlee](https://onlinesequencer.net/1813336)
 
 ## License
