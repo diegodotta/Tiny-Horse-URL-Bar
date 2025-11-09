@@ -307,18 +307,47 @@ function writeHash(s) {
     }
 }
 
+let __shareBound = false;
 function mirror(s) {
-    const el = document.getElementById('game-container');
-    el.style.whiteSpace = 'pre';
-    if (!el) return;
-    const lines = [];
-    if (waitingStart) lines.push('Press SPACE to start\n\n');
-    if (gameOver) lines.push('Game Over - Press R to restart\n\n');
-    if (!gameOver && !waitingStart) lines.push('Press SPACE to jump. Avoid obstacles.\n\n');
-    lines.push(s);
-    lines.push(`Score: ${score}  Level: ${Math.min(currentLevel+1, LEVELS.length)}`);
-
-    el.textContent = lines.join('\n');
+    const elInstr = document.getElementById('instructions');
+    const elUrlText = document.getElementById('url-text');
+    const elScore = document.getElementById('score-text');
+    if (elInstr) {
+        if (waitingStart) elInstr.textContent = 'Press SPACE to start';
+        else if (gameOver) elInstr.textContent = 'Game Over — Press R to restart';
+        else elInstr.textContent = 'Press SPACE to jump. Avoid obstacles.';
+    }
+    if (elUrlText) {
+        const base = '';
+        const suffix = gameOver ? 'GAME_OVER' : '';
+        elUrlText.textContent = base + s + suffix;
+    }
+    if (elScore) {
+        elScore.textContent = `Score: ${score}  Level: ${Math.min(currentLevel+1, LEVELS.length)}`;
+    }
+    if (!__shareBound) {
+        const btn = document.getElementById('share-btn');
+        if (btn) {
+            __shareBound = true;
+            btn.addEventListener('click', async () => {
+                try {
+                    const message = `Try to beat my horse (score: ${score})! https://diego.horse/jump`;
+                    if (navigator.share) {
+                        await navigator.share({
+                            text: message,
+                        });
+                    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(shareUrl);
+                        const old = btn.textContent;
+                        btn.textContent = '✅ Copied';
+                        setTimeout(() => { btn.textContent = old; }, 1200);
+                    }
+                } catch (e) {
+                    // Ignore if user cancels native share
+                }
+            });
+        }
+    }
 }
 
 function tick() {
