@@ -44,10 +44,6 @@ The game ramps up using level configs:
 
 Edit `LEVELS` and `LEVEL_THRESHOLDS` in `game.js` to tune difficulty.
 
-## URL Hash Output
-- Each tick writes the visible scene to the URL hash.
-- On game over: `[scene]GAME_OVER` (no score in the URL).
-
 ## Dev Notes
 - Code split:
   - `index.html` — shell page and container
