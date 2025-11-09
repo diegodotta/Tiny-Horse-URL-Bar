@@ -82,15 +82,25 @@
   margin-left: auto;
 }
 
+.game .controls .icon-btn {
+  width: 100%;
+  padding: 12px 16px;
+  font-weight: 600;
+}
+
+.game .desktop-only {
+  display: none;
+}
+
 /* Desktop: hide URL mirror where URL bar is visible */
 @media (hover: hover) and (pointer: fine) {
   .game #url:before {
     content: "🌐 https://diego.horse/jump/";
   }
-  .mobile-only {
+  .game .mobile-only, .game #url {
     display: none;
   }
-  .game #url { display: none; }
+  .game .desktop-only { display: flex; }
 }
 
 /* Safari desktop override: show the URL mirror even on desktop */
@@ -110,13 +120,4 @@
 }
 
 
-/* Mobile jump controls */
-.game .controls {
-  display: flex;
-}
-.game .controls .icon-btn {
-  width: 100%;
-  padding: 12px 16px;
-  font-weight: 600;
-}
 

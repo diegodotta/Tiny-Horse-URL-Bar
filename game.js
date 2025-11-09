@@ -12,7 +12,7 @@ const isMobile = typeof window !== 'undefined' && window.matchMedia && window.ma
 const isSafari = typeof navigator !== 'undefined' && /safari/i.test(navigator.userAgent) && !/chrome|chromium|crios|edg/i.test(navigator.userAgent);
 let __mobileInit = false;
 
-const SCENE_LENGTH = isMobile ? 30 : 40;
+const SCENE_LENGTH = isMobile ? 40 : 40;
 const PLAYER_POS = 3; // fixed player position in the scene
 const GROUND_CHAR = '⠤';
 const HOLE_CHAR = '_'; // Braille blank U+2800
@@ -32,7 +32,7 @@ const TICK_MS = 120;
 const BLINK_GAME_OVER = 'GAME⠤OVER⠤⠤𐂃⠤';
 const BLINK_RESTART = 'PRESS⠤R⠤TO⠤RESTART⠤⠤';
 const BLINK_PRESTART = 'PRESS⠤SPACE⠤TO⠤START⠤⠤';
-const BLINK_TAIL_TRIM = isMobile ? 15 : 15; // number of chars to trim from base tail during blink
+const BLINK_TAIL_TRIM = isMobile ? 20 : 15; // number of chars to trim from base tail during blink
 // Level configs (easiest -> hardest)
 const LEVELS = [
     { tickMs: 160,
@@ -320,7 +320,7 @@ function startLevelUpBlink(displayLevel) {
     levelUpBlinkVisible = false;
     levelUpBlinkStart = performance.now();
     lastLevelUpBlinkToggle = levelUpBlinkStart;
-    const msg = `LEVEL⠤${displayLevel}`;
+    const msg = `LEVEL⠤${displayLevel}${GROUND_CHAR.repeat(BLINK_TAIL_TRIM - 8)}`;
     const frame = (now) => {
         if (gameOver) { levelUpPause = false; return; }
         if (now - levelUpBlinkStart >= LEVEL_BLINK_MS) {
@@ -517,9 +517,9 @@ function mirror(s) {
     const elScore = document.getElementById('score-text');
     const elHigh = document.getElementById('high-score-text');
     if (elInstr) {
-        if (waitingStart) elInstr.textContent = isMobile ? 'Tap to start' : 'Press SPACE to start the game in your URL bar.';
-        else if (gameOver) elInstr.textContent = isMobile ? 'Game Over! Tap to restart' : 'Game Over! Press R to restart';
-        else elInstr.textContent = isMobile ? 'Tap to jump. Avoid obstacles.' : 'Press the SPACE to jump. Avoid the obstacles.';
+        if (waitingStart) elInstr.textContent = isMobile ? 'Tap JUMP to start' : 'Press SPACE to start the game in your URL bar.';
+        else if (gameOver) elInstr.textContent = isMobile ? 'Game Over! Tap JUMP to restart' : 'Game Over! Press R to restart';
+        else elInstr.textContent = isMobile ? 'Tap JUMP to jump. Avoid obstacles.' : 'Press the SPACE to jump. Avoid the obstacles.';
     }
     if (elUrlText) {
         elUrlText.textContent = s;
