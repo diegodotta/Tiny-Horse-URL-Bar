@@ -1,5 +1,8 @@
 // URL Bar Runner
-const SCENE_LENGTH = 40;
+const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+let __mobileInit = false;
+
+const SCENE_LENGTH = isMobile ? 25 : 40;
 const PLAYER_POS = 3; // fixed player position in the scene
 const GROUND_CHAR = '⠤';
 const HOLE_CHAR = '_'; // Braille blank U+2800
@@ -19,7 +22,7 @@ const TICK_MS = 120;
 const BLINK_GAME_OVER = 'GAME⠤OVER⠤⠤⠤';
 const BLINK_RESTART = 'PRESS⠤R⠤TO⠤RESTART⠤⠤';
 const BLINK_PRESTART = 'PRESS⠤SPACE⠤TO⠤START⠤⠤';
-const BLINK_TAIL_TRIM = 20; // number of chars to trim from base tail during blink
+const BLINK_TAIL_TRIM = isMobile ? 15 : 20; // number of chars to trim from base tail during blink
 // Level configs (easiest -> hardest)
 const LEVELS = [
     { tickMs: 160, holeProb: 0.08, minHole: 1, maxHole: 2, gapHoles: 5, gapGlobal: 2,
@@ -99,8 +102,7 @@ let preStartBlinkRafId = null;
 let preStartBlinkVisible = false;
 let lastPreStartBlinkToggle = 0;
 
-const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-let __mobileInit = false;
+
 
 let __bgm = null;
 let __bgmReady = false;
@@ -536,7 +538,7 @@ function endGame() {
       lastBlinkToggle = now;
     }
     const msg = blinkPhase === 0 ? BLINK_GAME_OVER : BLINK_RESTART;
-    const composed = baseForBlink + (blinkVisible ? msg : GROUND_CHAR.repeat(msg.length));
+    const composed = baseForBlink + (blinkVisible ? msg : GROUND_CHAR.repeat(msg.length - 1));
     writeHash(composed);
     mirror(composed);
     gameOverBlinkRafId = requestAnimationFrame(frame);
