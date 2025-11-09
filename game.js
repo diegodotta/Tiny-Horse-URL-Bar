@@ -36,7 +36,7 @@ const TICK_MS = 120;
 const BLINK_GAME_OVER = 'GAME⠤OVER⠤⠤𐂃⠤';
 const BLINK_RESTART = 'R⠤TO⠤RESTART⠤⠤';
 const BLINK_PRESTART = 'PRESS⠤SPACE⠤TO⠤START⠤⠤';
-const BLINK_TAIL_TRIM = isMobile ? 20 : 15; // number of chars to trim from base tail during blink
+const BLINK_TAIL_TRIM = isMobile ? 25 : 15; // number of chars to trim from base tail during blink
 // Level configs (easiest -> hardest)
 const LEVELS = [
     { tickMs: 160,
