@@ -1,5 +1,15 @@
-// URL Bar Runner
+/*
+ Tiny Horse, Tiny Jump! — URL Bar Runner
+ Author: Diego Dotta — https://diego.horse
+ Play: https://diego.horse/jump
+ Controls: Desktop — SPACE to start/jump, R to restart (auto-starts). Mobile — Tap to start/jump/restart.
+ Scoring: Score increments per tick; High score persists via localStorage; Share button shares high score.
+ Audio: soundtrack.mp3 tempo scales with level; start.mp3 on start; jump.m4a on jump; crash.mp3 on crash.
+ License: MIT
+*/
+
 const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+const isSafari = typeof navigator !== 'undefined' && /safari/i.test(navigator.userAgent) && !/chrome|chromium|crios|edg/i.test(navigator.userAgent);
 let __mobileInit = false;
 
 const SCENE_LENGTH = isMobile ? 25 : 40;
@@ -528,17 +538,18 @@ function mirror(s) {
             __shareBound = true;
             btn.addEventListener('click', async () => {
                 try {
-                    const message = `Try to beat my horse (high score: ${highScore})! https://diego.horse/jump`;
-                    if (navigator.share) {
-                        await navigator.share({
-                            text: message,
-                        });
-                    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+                    const message = `Try to beat my tiny horse (high score: ${highScore})! https://diego.horse/jump`;
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
                         await navigator.clipboard.writeText(message);
                         const old = btn.textContent;
                         btn.textContent = '✅ Copied';
                         setTimeout(() => { btn.textContent = old; }, 1200);
                     }
+                    if (navigator.share) {
+                        await navigator.share({
+                            text: message,
+                        });
+                    } 
                 } catch (e) {
                     // Ignore if user cancels native share
                 }
@@ -689,6 +700,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 window.onload = () => {
+    try { if (isSafari && !isMobile) { document.documentElement.classList.add('safari-desktop'); } } catch (e) {}
     resetGame();
     initMobileControls();
 };
