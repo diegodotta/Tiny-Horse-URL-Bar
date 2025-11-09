@@ -94,6 +94,11 @@
   .game #url { display: none; }
 }
 
+/* Safari desktop override: show the URL mirror even on desktop */
+.safari-desktop .game #url {
+  display: flex !important;
+}
+
 /* Hidden input to summon mobile keyboard */
 .game .mobile-hidden-input {
   position: absolute;
