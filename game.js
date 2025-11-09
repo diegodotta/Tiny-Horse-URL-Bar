@@ -562,6 +562,7 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         if (waitingStart) {
             startGameLoop();
+            startJump();
             return;
         }
         startJump();
@@ -598,6 +599,7 @@ function initMobileControls() {
         }
         if (waitingStart) {
             startGameLoop();
+            startJump();
         } else {
             startJump();
         }
@@ -607,6 +609,7 @@ function initMobileControls() {
             resetGame();
         } else if (waitingStart) {
             startGameLoop();
+            startJump();
         } else {
             startJump();
         }
