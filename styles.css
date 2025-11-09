@@ -1,0 +1,87 @@
+/* Base layout */
+:root {
+  --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+html, body {
+  margin: 0;
+  padding: 20px;
+  font-family: var(--font);
+  background: #ffffff;
+  color: #111;
+}
+
+h1 {
+  font-size: 28px;
+  margin: 8px 0 16px;
+}
+
+/* Panels */
+.panel {
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 10px 0;
+  background: #fafafa;
+}
+
+/* URL mimic line */
+#url {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font);
+  font-size: 20px;
+  line-height: 1.2;
+  border-radius: 10em;
+  padding: 8px 10px;
+}
+
+#url:before {
+  content: "🌐 https://diego.horse/jump/";
+  color: #ccc;
+}
+
+#url-text {
+  white-space: pre;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  flex: 1 1 auto;
+}
+
+.icon-btn {
+  appearance: none;
+  border: 1px solid #e2e2e2;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+.icon-btn:hover { background: #f3f3f3; }
+.icon-btn:active { transform: translateY(1px); }
+
+/* Instructions */
+#instructions {
+  color: #0b5;
+}
+
+/* Score */
+#score {
+  font-weight: 600;
+}
+
+.score {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#score-text {
+  flex: 1 1 auto;
+}
+
+#score .icon-btn {
+  margin-left: auto;
+}
