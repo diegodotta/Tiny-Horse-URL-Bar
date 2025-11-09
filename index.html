@@ -7,11 +7,16 @@
     <link rel="stylesheet" href="./assets/styles.css">
 </head>
 <body>
-    <small><a href="https://diego.horse">diego.horse</a> presents</small>
-    <h1>𐂃 Horse Jump - URL Bar Runner</h1>
-    <div id="instructions" class="panel"></div>
-    <div id="url" class="panel url"><span id="url-text"></span></div>
-    <div id="score" class="panel score"><span id="score-text"></span><button id="share-btn" title="Share Score" aria-label="Share Score" class="icon-btn">Share Score</button></div>
+    <div class="game">
+        <small><a href="https://diego.horse">diego.horse</a> presents</small>
+        <h1>𐂃 Horse Jump - URL Bar Runner</h1>
+        <div id="instructions" class="panel"></div>
+        <div class="panel mobile-only">Better visualized on desktop.</div>
+        <div id="url" class="panel url"><span id="url-text"></span></div>
+        <input id="mobile-key" class="mobile-hidden-input" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-hidden="true" />
+        <div id="score" class="panel score"><span id="score-text"></span></div>
+        <div id="high-score" class="panel highscore"><span id="high-score-text"></span><button id="share-btn" title="Share Score" aria-label="Share Score" class="icon-btn">Share Score</button></div>
+    </div>
     <script src="./game.js"></script>
 </body>
 </html>

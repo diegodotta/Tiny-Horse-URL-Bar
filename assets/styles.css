@@ -1,8 +1,7 @@
 /* Base layout */
-:root {
+
+.game {
   --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-}
-html, body {
   margin: 0;
   padding: 20px;
   font-family: var(--font);
@@ -10,13 +9,13 @@ html, body {
   color: #111;
 }
 
-h1 {
+.game h1 {
   font-size: 28px;
   margin: 8px 0 16px;
 }
 
 /* Panels */
-.panel {
+.game .panel {
   border: 1px solid #e5e5e5;
   border-radius: 8px;
   padding: 12px 14px;
@@ -25,7 +24,7 @@ h1 {
 }
 
 /* URL mimic line */
-#url {
+.game #url {
   display: flex;
   align-items: center;
   font-family: var(--font);
@@ -37,12 +36,12 @@ h1 {
   text-overflow: ellipsis;
 }
 
-#url:before {
-  content: "🌐 https://diego.horse/jump/";
+.game #url:before {
+  content: "🌐";
   color: #ccc;
 }
 
-#url-text {
+.game #url-text {
   white-space: pre;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -50,7 +49,7 @@ h1 {
   flex: 1 1 auto;
 }
 
-.icon-btn {
+.game .icon-btn {
   appearance: none;
   border: 1px solid #e2e2e2;
   background: #fff;
@@ -59,29 +58,54 @@ h1 {
   cursor: pointer;
   line-height: 1;
 }
-.icon-btn:hover { background: #f3f3f3; }
-.icon-btn:active { transform: translateY(1px); }
+.game .icon-btn:hover { background: #f3f3f3; }
+.game .icon-btn:active { transform: translateY(1px); }
 
 /* Instructions */
-#instructions {
+.game #instructions {
   color: #0b5;
 }
 
-/* Score */
-#score {
-  font-weight: 600;
+.game #instructions:before {
+  content: "ℹ️";
+  padding-right: 10px;
 }
 
-.score {
+/* Score */
+
+.game .score, .game .highscore {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-#score-text {
+.game #score-text {
   flex: 1 1 auto;
 }
 
-#score .icon-btn {
+.game #score .icon-btn, .game #high-score .icon-btn {
   margin-left: auto;
 }
+
+/* Desktop: hide URL mirror where URL bar is visible */
+@media (hover: hover) and (pointer: fine) {
+  .game #url:before {
+    content: "🌐 https://diego.horse/jump/";
+  }
+  .mobile-only {
+    display: none;
+  }
+  .game #url { display: none; }
+}
+
+/* Hidden input to summon mobile keyboard */
+.game .mobile-hidden-input {
+  position: absolute;
+  top: -1000px;
+  left: -1000px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+

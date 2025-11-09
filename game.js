@@ -92,10 +92,15 @@ let lastBlinkToggle = 0;
 const BLINK_PERIOD_MS = 400;
 const FIRST_PHASE_MS = 3000;
 
+let highScore = 0;
+
 // Pre-start blinking
 let preStartBlinkRafId = null;
 let preStartBlinkVisible = false;
 let lastPreStartBlinkToggle = 0;
+
+const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+let __mobileInit = false;
 
 let __bgm = null;
 let __bgmReady = false;
@@ -153,6 +158,11 @@ function resetGame() {
     blinkVisible = false;
     blinkPhaseStart = 0;
     lastBlinkToggle = 0;
+    // Load highest score before first mirror
+    try {
+        const v = parseInt((localStorage && localStorage.getItem('highScore')) || '0', 10);
+        if (!isNaN(v)) highScore = v;
+    } catch (e) { /* ignore */ }
     writeHash(renderString());
     mirror(renderString());
     if (loopId) clearInterval(loopId);
@@ -172,12 +182,15 @@ function resetGame() {
         const base = renderString();
         const maxTrim = Math.min(BLINK_TAIL_TRIM, Math.max(0, base.length - (PLAYER_POS + 1)));
         const baseTrim = base.slice(0, base.length - maxTrim);
-        const composed = baseTrim + (preStartBlinkVisible ? BLINK_PRESTART : GROUND_CHAR.repeat(BLINK_PRESTART.length - 1));
+        const msg = isMobile ? 'TAP⠤TO⠤START⠤⠤' : BLINK_PRESTART;
+        const composed = baseTrim + (preStartBlinkVisible ? msg : GROUND_CHAR.repeat(msg.length - 1));
         writeHash(composed);
         mirror(composed);
         preStartBlinkRafId = requestAnimationFrame(preFrame);
     };
     preStartBlinkRafId = requestAnimationFrame(preFrame);
+
+    if (isMobile) ensureMobileKeyboardFocus();
 }
 
 function startGameLoop() {
@@ -383,16 +396,20 @@ function mirror(s) {
     const elInstr = document.getElementById('instructions');
     const elUrlText = document.getElementById('url-text');
     const elScore = document.getElementById('score-text');
+    const elHigh = document.getElementById('high-score-text');
     if (elInstr) {
-        if (waitingStart) elInstr.textContent = 'Press SPACE to start';
-        else if (gameOver) elInstr.textContent = 'Game Over — Press R to restart';
-        else elInstr.textContent = 'Press SPACE to jump. Avoid obstacles.';
+        if (waitingStart) elInstr.textContent = isMobile ? 'Tap to start' : 'Press SPACE to start the game on your URL bar.';
+        else if (gameOver) elInstr.textContent = isMobile ? 'Game Over — Tap to restart' : 'Game Over — Press R to restart';
+        else elInstr.textContent = isMobile ? 'Tap to jump. Avoid obstacles.' : 'Press SPACE to jump. Avoid obstacles.';
     }
     if (elUrlText) {
         elUrlText.textContent = s;
     }
     if (elScore) {
-        elScore.textContent = `Score: ${score}  Level: ${Math.min(currentLevel+1, LEVELS.length)}`;
+        elScore.textContent = `🎯 Score: ${score}  Level: ${Math.min(currentLevel+1, LEVELS.length)}`;
+    }
+    if (elHigh) {
+        elHigh.textContent = `🏆 Highest score: ${highScore}`;
     }
     if (!__shareBound) {
         const btn = document.getElementById('share-btn');
@@ -400,7 +417,7 @@ function mirror(s) {
             __shareBound = true;
             btn.addEventListener('click', async () => {
                 try {
-                    const message = `Try to beat my horse (score: ${score})! https://diego.horse/jump`;
+                    const message = `Try to beat my horse (highest score: ${highScore})! https://diego.horse/jump`;
                     if (navigator.share) {
                         await navigator.share({
                             text: message,
@@ -475,6 +492,10 @@ function tick() {
 
     // Score for each successful tick advanced
     score++;
+    if (score > highScore) {
+        highScore = score;
+        try { localStorage && localStorage.setItem('highScore', String(highScore)); } catch (e) { /* ignore */ }
+    }
     applyLevelByScore();
 
     const s = renderString();
@@ -547,4 +568,41 @@ document.addEventListener('keydown', (e) => {
 
 window.onload = () => {
     resetGame();
+    initMobileControls();
 };
+
+function ensureMobileKeyboardFocus() {
+    const el = document.getElementById('mobile-key');
+    if (!el) return;
+    try { el.focus({ preventScroll: true }); } catch (e) { try { el.focus(); } catch (e2) {} }
+}
+
+function initMobileControls() {
+    if (!isMobile || __mobileInit) return;
+    __mobileInit = true;
+    const el = document.getElementById('mobile-key');
+    if (!el) return;
+    ensureMobileKeyboardFocus();
+    document.addEventListener('touchstart', () => {
+        ensureMobileKeyboardFocus();
+        if (gameOver) {
+            resetGame();
+            return;
+        }
+        if (waitingStart) {
+            startGameLoop();
+        } else {
+            startJump();
+        }
+    }, { passive: true });
+    el.addEventListener('input', () => {
+        if (gameOver) {
+            resetGame();
+        } else if (waitingStart) {
+            startGameLoop();
+        } else {
+            startJump();
+        }
+        el.value = '';
+    });
+}
