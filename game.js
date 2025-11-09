@@ -28,11 +28,15 @@ const SPIKE_CHAR = '⠴';
 const JUMP_SPIKE_CHAR = '⠵';
 const GATOR_CHAR = 'v';
 const JUMP_GATOR_CHAR = 'v̇';
+const BOULDER_CHAR = 'o';
+const JUMP_BOULDER_CHAR = 'ȯ';
+const SNAKE_CHAR = 's';
+const JUMP_SNAKE_CHAR = 'ṡ';
 const TICK_MS = 120;
 const BLINK_GAME_OVER = 'GAME⠤OVER⠤⠤𐂃⠤';
 const BLINK_RESTART = 'PRESS⠤R⠤TO⠤RESTART⠤⠤';
 const BLINK_PRESTART = 'PRESS⠤SPACE⠤TO⠤START⠤⠤';
-const BLINK_TAIL_TRIM = isMobile ? 20 : 15; // number of chars to trim from base tail during blink
+const BLINK_TAIL_TRIM = isMobile ? 15 : 15; // number of chars to trim from base tail during blink
 // Level configs (easiest -> hardest)
 const LEVELS = [
     { tickMs: 160,
@@ -40,25 +44,33 @@ const LEVELS = [
       stairProb: 0.05, minPlat: 2, maxPlat: 5, gapPlat: 5,
       ceilingProb: 0.04, minCeil: 1, maxCeil: 1, gapCeil: 6,
       spikeProb: 0.06, minSpike: 1, maxSpike: 1, gapSpike: 4,
-      gatorProb: 0.00, minGator: 1, maxGator: 1, gapGator: 5 },
+      gatorProb: 0.00, minGator: 1, maxGator: 1, gapGator: 5,
+      boulderProb: 0.05, minBoulder: 1, maxBoulder: 1, gapBoulder: 4,
+      snakeProb: 0.00, minSnake: 1, maxSnake: 1, gapSnake: 4 },
     { tickMs: 130,
       holeProb: 0.12, minHole: 1, maxHole: 3, gapHoles: 4, gapGlobal: 1,
       stairProb: 0.08, minPlat: 2, maxPlat: 4, gapPlat: 5,
       ceilingProb: 0.06, minCeil: 1, maxCeil: 2, gapCeil: 6,
       spikeProb: 0.10, minSpike: 1, maxSpike: 2, gapSpike: 3,
-      gatorProb: 0.06, minGator: 1, maxGator: 2, gapGator: 4 },
+      gatorProb: 0.06, minGator: 1, maxGator: 2, gapGator: 4,
+      boulderProb: 0.07, minBoulder: 1, maxBoulder: 2, gapBoulder: 4,
+      snakeProb: 0.07, minSnake: 1, maxSnake: 2, gapSnake: 4 },
     { tickMs: 110,
       holeProb: 0.16, minHole: 1, maxHole: 3, gapHoles: 4, gapGlobal: 1,
       stairProb: 0.10, minPlat: 2, maxPlat: 5, gapPlat: 4,
       ceilingProb: 0.08, minCeil: 2, maxCeil: 4, gapCeil: 5,
       spikeProb: 0.14, minSpike: 1, maxSpike: 2, gapSpike: 3,
-      gatorProb: 0.08, minGator: 1, maxGator: 2, gapGator: 4 },
+      gatorProb: 0.08, minGator: 1, maxGator: 2, gapGator: 4,
+      boulderProb: 0.09, minBoulder: 1, maxBoulder: 2, gapBoulder: 3,
+      snakeProb: 0.09, minSnake: 1, maxSnake: 2, gapSnake: 3 },
     { tickMs: 95,
       holeProb: 0.20, minHole: 1, maxHole: 3, gapHoles: 3, gapGlobal: 0,
-      stairProb: 0.12, minPlat: 2, maxPlat: 6, gapPlat: 3,
+      stairProb: 0.12, minPlat: 3, maxPlat: 6, gapPlat: 3,
       ceilingProb: 0.10, minCeil: 2, maxCeil: 5, gapCeil: 5,
       spikeProb: 0.18, minSpike: 1, maxSpike: 2, gapSpike: 3,
-      gatorProb: 0.10, minGator: 1, maxGator: 2, gapGator: 3 },
+      gatorProb: 0.10, minGator: 1, maxGator: 2, gapGator: 3,
+      boulderProb: 0.12, minBoulder: 1, maxBoulder: 3, gapBoulder: 3,
+      snakeProb: 0.12, minSnake: 1, maxSnake: 2, gapSnake: 3 },
 ];
 const LEVEL_THRESHOLDS = [0, 100, 200, 300];
 // Music tempo per level (aligned with LEVELS). Tune as desired.
@@ -71,6 +83,8 @@ let stairProb, minPlat, maxPlat, gapPlat;
 let ceilingProb, minCeil, maxCeil, gapCeil;
 let spikeProb, minSpike, maxSpike, gapSpike;
 let gatorProb, minGator, maxGator, gapGator;
+let boulderProb, minBoulder, maxBoulder, gapBoulder;
+let snakeProb, minSnake, maxSnake, gapSnake;
 let gapGlobal = 0;
 
 let scene = new Array(SCENE_LENGTH).fill(GROUND_CHAR);
@@ -80,6 +94,8 @@ let stairCountdown = 0;
 let ceilingCountdown = 0;
 let spikeCountdown = 0;
 let gatorCountdown = 0;
+let boulderCountdown = 0;
+let snakeCountdown = 0;
 let gapCountdown = 0;
 let globalGapCountdown = 0;
 let lastTileWasHole = false;
@@ -91,6 +107,10 @@ let spikeGapCountdown = 0;
 let lastTileWasSpike = false;
 let gatorGapCountdown = 0;
 let lastTileWasGator = false;
+let boulderGapCountdown = 0;
+let lastTileWasBoulder = false;
+let snakeGapCountdown = 0;
+let lastTileWasSnake = false;
 let jumping = false;
 let jumpFrames = 0; // remaining frames of jump
 let onPlatform = false;
@@ -197,6 +217,8 @@ function resetGame() {
     ceilingCountdown = 0;
     spikeCountdown = 0;
     gatorCountdown = 0;
+    boulderCountdown = 0;
+    snakeCountdown = 0;
     gapCountdown = 0;
     globalGapCountdown = 0;
     lastEmittedChar = GROUND_CHAR;
@@ -208,7 +230,11 @@ function resetGame() {
     spikeGapCountdown = 0;
     lastTileWasSpike = false;
     gatorGapCountdown = 0;
+    boulderGapCountdown = 0;
+    snakeGapCountdown = 0;
     lastTileWasGator = false;
+    lastTileWasBoulder = false;
+    lastTileWasSnake = false;
     jumping = false;
     jumpFrames = 0;
     onPlatform = false;
@@ -288,6 +314,8 @@ function applyLevelByScore() {
         ceilingProb = cfg.ceilingProb; minCeil = cfg.minCeil; maxCeil = cfg.maxCeil; gapCeil = cfg.gapCeil;
         spikeProb = cfg.spikeProb; minSpike = cfg.minSpike; maxSpike = cfg.maxSpike; gapSpike = cfg.gapSpike;
         gatorProb = cfg.gatorProb; minGator = cfg.minGator; maxGator = cfg.maxGator; gapGator = cfg.gapGator;
+        boulderProb = cfg.boulderProb; minBoulder = cfg.minBoulder; maxBoulder = cfg.maxBoulder; gapBoulder = cfg.gapBoulder;
+        snakeProb = cfg.snakeProb; minSnake = cfg.minSnake; maxSnake = cfg.maxSnake; gapSnake = cfg.gapSnake;
         gapGlobal = cfg.gapGlobal || 0;
 
         // Start level-up blink (pause gameplay for 2s)
@@ -379,6 +407,18 @@ function nextTile() {
         lastEmittedChar = GATOR_CHAR;
         return GATOR_CHAR;
     }
+    if (boulderCountdown > 0) {
+        boulderCountdown--;
+        lastTileWasBoulder = true;
+        lastEmittedChar = BOULDER_CHAR;
+        return BOULDER_CHAR;
+    }
+    if (snakeCountdown > 0) {
+        snakeCountdown--;
+        lastTileWasSnake = true;
+        lastEmittedChar = SNAKE_CHAR;
+        return SNAKE_CHAR;
+    }
 
     // If we just ended a sequence, start enforcing gaps
     if (lastTileWasHole) {
@@ -405,6 +445,16 @@ function nextTile() {
         gatorGapCountdown = gapGator;
         globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
         lastTileWasGator = false;
+    }
+    if (lastTileWasBoulder) {
+        boulderGapCountdown = gapBoulder;
+        globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
+        lastTileWasBoulder = false;
+    }
+    if (lastTileWasSnake) {
+        snakeGapCountdown = gapSnake;
+        globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
+        lastTileWasSnake = false;
     }
 
     // Enforce gaps
@@ -435,6 +485,16 @@ function nextTile() {
     }
     if (gatorGapCountdown > 0) {
         gatorGapCountdown--;
+        lastEmittedChar = GROUND_CHAR;
+        return GROUND_CHAR;
+    }
+    if (boulderGapCountdown > 0) {
+        boulderGapCountdown--;
+        lastEmittedChar = GROUND_CHAR;
+        return GROUND_CHAR;
+    }
+    if (snakeGapCountdown > 0) {
+        snakeGapCountdown--;
         lastEmittedChar = GROUND_CHAR;
         return GROUND_CHAR;
     }
@@ -471,6 +531,18 @@ function nextTile() {
         lastTileWasGator = true; // ensure post-segment gap even for single-length
         return GATOR_CHAR;
     }
+    if (Math.random() < boulderProb) {
+        boulderCountdown = randomInt(minBoulder, maxBoulder) - 1;
+        lastEmittedChar = BOULDER_CHAR;
+        lastTileWasBoulder = true;
+        return BOULDER_CHAR;
+    }
+    if (Math.random() < snakeProb) {
+        snakeCountdown = randomInt(minSnake, maxSnake) - 1;
+        lastEmittedChar = SNAKE_CHAR;
+        lastTileWasSnake = true;
+        return SNAKE_CHAR;
+    }
 
     lastEmittedChar = GROUND_CHAR;
     return GROUND_CHAR;
@@ -485,6 +557,8 @@ function playerChar() {
     }
     if (under === SPIKE_CHAR) return JUMP_SPIKE_CHAR;
     if (under === GATOR_CHAR) return JUMP_GATOR_CHAR;
+    if (under === BOULDER_CHAR) return JUMP_BOULDER_CHAR;
+    if (under === SNAKE_CHAR) return JUMP_SNAKE_CHAR;
     if (under === STAIR_CHAR) return JUMP_STAIR_CHAR;
     return under === HOLE_CHAR ? JUMP_HOLE_CHAR : JUMP_GROUND_CHAR;
 }
@@ -606,6 +680,18 @@ function tick() {
 
     // Alligator rules: like spikes — kill unless jumping or on platform
     if (underPlayer === GATOR_CHAR && !jumping && !onPlatform) {
+        endGame();
+        return;
+    }
+
+    // Boulder rules: like spikes — kill unless jumping or on platform
+    if (underPlayer === BOULDER_CHAR && !jumping && !onPlatform) {
+        endGame();
+        return;
+    }
+
+    // Snake rules: like spikes — kill unless jumping or on platform
+    if (underPlayer === SNAKE_CHAR && !jumping && !onPlatform) {
         endGame();
         return;
     }
