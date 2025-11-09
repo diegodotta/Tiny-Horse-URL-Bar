@@ -114,7 +114,7 @@ let __bgmReady = false;
 function startMusic() {
     try {
         if (!__bgm) {
-            __bgm = new Audio('./assets/music.mp3');
+            __bgm = new Audio('https://diegodotta.github.io/horse-jump-url-bar/assets/music.mp3');
             __bgm.loop = true;
             __bgm.preload = 'auto';
             __bgm.volume = 0.6;
