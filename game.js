@@ -16,13 +16,17 @@ const JUMP_SPIKE_CHAR = '⠵';
 const GATOR_CHAR = 'v';
 const JUMP_GATOR_CHAR = 'v̇';
 const TICK_MS = 120;
+const BLINK_GAME_OVER = 'GAME⠤OVER⠤⠤⠤';
+const BLINK_RESTART = 'PRESS⠤R⠤TO⠤RESTART⠤⠤';
+const BLINK_PRESTART = 'PRESS⠤SPACE⠤TO⠤START⠤⠤';
+const BLINK_TAIL_TRIM = 20; // number of chars to trim from base tail during blink
 // Level configs (easiest -> hardest)
 const LEVELS = [
     { tickMs: 160, holeProb: 0.08, minHole: 1, maxHole: 2, gapHoles: 5, gapGlobal: 2,
       stairProb: 0.05, minPlat: 2, maxPlat: 3, gapPlat: 5,
       ceilingProb: 0.04, minCeil: 2, maxCeil: 2, gapCeil: 6,
       spikeProb: 0.06, minSpike: 1, maxSpike: 1, gapSpike: 4,
-      gatorProb: 0.04, minGator: 1, maxGator: 1, gapGator: 5 },
+      gatorProb: 0.00, minGator: 1, maxGator: 1, gapGator: 5 },
     { tickMs: 130, holeProb: 0.12, minHole: 1, maxHole: 3, gapHoles: 4, gapGlobal: 1,
       stairProb: 0.08, minPlat: 2, maxPlat: 4, gapPlat: 5,
       ceilingProb: 0.06, minCeil: 2, maxCeil: 4, gapCeil: 6,
@@ -78,6 +82,46 @@ let rafId = null;
 let lastFrameTime = 0;
 let currentLevel = -1;
 let waitingStart = true;
+let gameOverRafId = null;
+// Blinking animation state
+let gameOverBlinkRafId = null;
+let blinkPhase = 0; // 0: GAME_OVER (3s), 1: PRESS_R_TO_RESTART
+let blinkVisible = false;
+let blinkPhaseStart = 0;
+let lastBlinkToggle = 0;
+const BLINK_PERIOD_MS = 400;
+const FIRST_PHASE_MS = 3000;
+
+// Pre-start blinking
+let preStartBlinkRafId = null;
+let preStartBlinkVisible = false;
+let lastPreStartBlinkToggle = 0;
+
+let __bgm = null;
+let __bgmReady = false;
+
+function startMusic() {
+    try {
+        if (!__bgm) {
+            __bgm = new Audio('./assets/music.mp3');
+            __bgm.loop = true;
+            __bgm.preload = 'auto';
+            __bgm.volume = 0.6;
+            __bgm.addEventListener('canplay', () => { __bgmReady = true; }, { once: true });
+        }
+        const p = __bgm.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (e) {}
+}
+
+function stopMusic() {
+    try {
+        if (__bgm) {
+            __bgm.pause();
+            __bgm.currentTime = 0;
+        }
+    } catch (e) {}
+}
 
 function resetGame() {
     scene = new Array(SCENE_LENGTH).fill(GROUND_CHAR);
@@ -105,16 +149,43 @@ function resetGame() {
     gameOver = false;
     currentLevel = -1; // force apply on first tick
     waitingStart = true;
+    blinkPhase = 0;
+    blinkVisible = false;
+    blinkPhaseStart = 0;
+    lastBlinkToggle = 0;
     writeHash(renderString());
     mirror(renderString());
     if (loopId) clearInterval(loopId);
     if (rafId) cancelAnimationFrame(rafId);
+    if (gameOverBlinkRafId) cancelAnimationFrame(gameOverBlinkRafId);
+    stopMusic();
+
+    // Start pre-start blink message
+    preStartBlinkVisible = false;
+    lastPreStartBlinkToggle = performance.now();
+    const preFrame = (now) => {
+        if (!waitingStart) return; // stop when game starts
+        if (now - lastPreStartBlinkToggle >= BLINK_PERIOD_MS) {
+            preStartBlinkVisible = !preStartBlinkVisible;
+            lastPreStartBlinkToggle = now;
+        }
+        const base = renderString();
+        const maxTrim = Math.min(BLINK_TAIL_TRIM, Math.max(0, base.length - (PLAYER_POS + 1)));
+        const baseTrim = base.slice(0, base.length - maxTrim);
+        const composed = baseTrim + (preStartBlinkVisible ? BLINK_PRESTART : GROUND_CHAR.repeat(BLINK_PRESTART.length - 1));
+        writeHash(composed);
+        mirror(composed);
+        preStartBlinkRafId = requestAnimationFrame(preFrame);
+    };
+    preStartBlinkRafId = requestAnimationFrame(preFrame);
 }
 
 function startGameLoop() {
     if (!waitingStart) return;
     waitingStart = false;
     lastFrameTime = performance.now();
+    startMusic();
+    if (preStartBlinkRafId) cancelAnimationFrame(preStartBlinkRafId);
     const frame = () => {
         if (gameOver) return;
         const now = performance.now();
@@ -318,9 +389,7 @@ function mirror(s) {
         else elInstr.textContent = 'Press SPACE to jump. Avoid obstacles.';
     }
     if (elUrlText) {
-        const base = '';
-        const suffix = gameOver ? 'GAME_OVER' : '';
-        elUrlText.textContent = base + s + suffix;
+        elUrlText.textContent = s;
     }
     if (elScore) {
         elScore.textContent = `Score: ${score}  Level: ${Math.min(currentLevel+1, LEVELS.length)}`;
@@ -337,7 +406,7 @@ function mirror(s) {
                             text: message,
                         });
                     } else if (navigator.clipboard && navigator.clipboard.writeText) {
-                        await navigator.clipboard.writeText(shareUrl);
+                        await navigator.clipboard.writeText(message);
                         const old = btn.textContent;
                         btn.textContent = '✅ Copied';
                         setTimeout(() => { btn.textContent = old; }, 1200);
@@ -414,16 +483,44 @@ function tick() {
 }
 
 function endGame() {
-    gameOver = true;
-    if (loopId) clearInterval(loopId);
-    if (rafId) cancelAnimationFrame(rafId);
-    // Mark crash position
-    scene[PLAYER_POS] = '†';
-    const s = renderString();
-    // Append [GAME_OVER] to URL only
-    writeHash(s + 'GAME_OVER');
-    // Mirror shows the board and prompt
-    mirror(s);
+  gameOver = true;
+  if (loopId) clearInterval(loopId);
+  if (rafId) cancelAnimationFrame(rafId);
+  if (gameOverRafId) cancelAnimationFrame(gameOverRafId);
+  if (gameOverBlinkRafId) cancelAnimationFrame(gameOverBlinkRafId);
+  stopMusic();
+  // Mark crash position and capture final scene
+  scene[PLAYER_POS] = '†';
+  const base = renderString();
+  // Trim some tail characters (right side) to make room for blinking messages, keep crash marker intact
+  const maxTrim = Math.min(BLINK_TAIL_TRIM, Math.max(0, base.length - (PLAYER_POS + 1)));
+  const baseForBlink = base.slice(0, base.length - maxTrim);
+  // Blink sequence: GAME_OVER for 3s, then PRESS_R_TO_RESTART indefinitely
+  blinkPhase = 0;
+  blinkVisible = false;
+  blinkPhaseStart = performance.now();
+  lastBlinkToggle = blinkPhaseStart;
+  const frame = (now) => {
+    if (!gameOver) return;
+    // switch phase after 3 seconds
+    if (blinkPhase === 0 && now - blinkPhaseStart >= FIRST_PHASE_MS) {
+      blinkPhase = 1;
+      blinkPhaseStart = now;
+      // ensure immediate redraw on phase change
+      lastBlinkToggle = now - BLINK_PERIOD_MS;
+    }
+    // toggle visibility
+    if (now - lastBlinkToggle >= BLINK_PERIOD_MS) {
+      blinkVisible = !blinkVisible;
+      lastBlinkToggle = now;
+    }
+    const msg = blinkPhase === 0 ? BLINK_GAME_OVER : BLINK_RESTART;
+    const composed = baseForBlink + (blinkVisible ? msg : GROUND_CHAR.repeat(msg.length));
+    writeHash(composed);
+    mirror(composed);
+    gameOverBlinkRafId = requestAnimationFrame(frame);
+  };
+  gameOverBlinkRafId = requestAnimationFrame(frame);
 }
 
 function startJump() {
@@ -445,7 +542,6 @@ document.addEventListener('keydown', (e) => {
     if (e.key.toLowerCase() === 'r') {
         e.preventDefault();
         resetGame();
-        startGameLoop();
     }
 });
 
