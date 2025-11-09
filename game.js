@@ -22,7 +22,7 @@ const TICK_MS = 120;
 const BLINK_GAME_OVER = 'GAME⠤OVER⠤⠤𐂃⠤';
 const BLINK_RESTART = 'PRESS⠤R⠤TO⠤RESTART⠤⠤';
 const BLINK_PRESTART = 'PRESS⠤SPACE⠤TO⠤START⠤⠤';
-const BLINK_TAIL_TRIM = isMobile ? 15 : 20; // number of chars to trim from base tail during blink
+const BLINK_TAIL_TRIM = isMobile ? 15 : 15; // number of chars to trim from base tail during blink
 // Level configs (easiest -> hardest)
 const LEVELS = [
     { tickMs: 160,
@@ -50,7 +50,9 @@ const LEVELS = [
       spikeProb: 0.18, minSpike: 1, maxSpike: 2, gapSpike: 3,
       gatorProb: 0.10, minGator: 1, maxGator: 2, gapGator: 3 },
 ];
-const LEVEL_THRESHOLDS = [0, 80, 180, 320];
+const LEVEL_THRESHOLDS = [0, 100, 200, 300];
+// Music tempo per level (aligned with LEVELS). Tune as desired.
+const MUSIC_RATES = [0.80, 0.90, 1.0, 1.1];
 
 // Dynamic variables (filled by applyLevel)
 let tickMs = TICK_MS;
@@ -101,6 +103,15 @@ const FIRST_PHASE_MS = 3000;
 
 let highScore = 0;
 
+// Level-up blink state
+let levelUpPause = false;
+let levelUpBlinkRafId = null;
+let levelUpBlinkVisible = false;
+let levelUpBlinkStart = 0;
+let lastLevelUpBlinkToggle = 0;
+const LEVEL_BLINK_MS = 2000;
+let levelUpDelayTimeoutId = null;
+
 // Pre-start blinking
 let preStartBlinkRafId = null;
 let preStartBlinkVisible = false;
@@ -110,15 +121,50 @@ let lastPreStartBlinkToggle = 0;
 
 let __bgm = null;
 let __bgmReady = false;
+let __sfxStart = null;
+let __sfxJump = null;
+let __sfxCrash = null;
+let __sfxReady = false;
+let __lastJumpSfxAt = 0;
+
+function initSfx() {
+    try {
+        if (!__sfxStart) {
+            __sfxStart = new Audio(domain + '/assets/start.mp3');
+            __sfxStart.preload = 'auto';
+            __sfxStart.volume = 0.9;
+        }
+        if (!__sfxJump) {
+            __sfxJump = new Audio(domain + '/assets/jump.m4a');
+            __sfxJump.preload = 'auto';
+            __sfxJump.volume = 0.9;
+        }
+        if (!__sfxCrash) {
+            __sfxCrash = new Audio(domain + '/assets/crash.mp3');
+            __sfxCrash.preload = 'auto';
+            __sfxCrash.volume = 1.0;
+        }
+        __sfxReady = true;
+    } catch (e) {}
+}
+
+function playSafe(a) {
+    try { if (a) { const p = a.currentTime = 0, q = a.play(); if (q && typeof q.catch === 'function') q.catch(() => {}); } } catch (e) {}
+}
 
 function startMusic() {
     try {
         if (!__bgm) {
-            __bgm = new Audio('https://diegodotta.github.io/horse-jump-url-bar/assets/music.mp3');
+            __bgm = new Audio(domain + '/assets/soundtrack.mp3');
             __bgm.loop = true;
             __bgm.preload = 'auto';
             __bgm.volume = 0.6;
             __bgm.addEventListener('canplay', () => { __bgmReady = true; }, { once: true });
+            // prefer tempo change affecting pitch naturally
+            try { if ('preservesPitch' in __bgm) __bgm.preservesPitch = false; } catch (e) {}
+            try { if ('mozPreservesPitch' in __bgm) __bgm.mozPreservesPitch = false; } catch (e) {}
+            try { if ('webkitPreservesPitch' in __bgm) __bgm.webkitPreservesPitch = false; } catch (e) {}
+            updateMusicForLevel();
         }
         const p = __bgm.play();
         if (p && typeof p.catch === 'function') p.catch(() => {});
@@ -164,6 +210,7 @@ function resetGame() {
     blinkVisible = false;
     blinkPhaseStart = 0;
     lastBlinkToggle = 0;
+    try { if (levelUpDelayTimeoutId) { clearTimeout(levelUpDelayTimeoutId); levelUpDelayTimeoutId = null; } } catch (e) {}
     // Load highest score before first mirror
     try {
         const v = parseInt((localStorage && localStorage.getItem('highScore')) || '0', 10);
@@ -203,12 +250,14 @@ function startGameLoop() {
     if (!waitingStart) return;
     waitingStart = false;
     lastFrameTime = performance.now();
+    if (!__sfxReady) initSfx();
+    playSafe(__sfxStart);
     startMusic();
     if (preStartBlinkRafId) cancelAnimationFrame(preStartBlinkRafId);
     const frame = () => {
         if (gameOver) return;
         const now = performance.now();
-        if (now - lastFrameTime >= tickMs) {
+        if (!levelUpPause && now - lastFrameTime >= tickMs) {
             lastFrameTime = now;
             tick();
         }
@@ -232,7 +281,58 @@ function applyLevelByScore() {
         spikeProb = cfg.spikeProb; minSpike = cfg.minSpike; maxSpike = cfg.maxSpike; gapSpike = cfg.gapSpike;
         gatorProb = cfg.gatorProb; minGator = cfg.minGator; maxGator = cfg.maxGator; gapGator = cfg.gapGator;
         gapGlobal = cfg.gapGlobal || 0;
+
+        // Start level-up blink (pause gameplay for 2s)
+        const displayLevel = Math.min(currentLevel + 1, LEVELS.length);
+        if (displayLevel === 1) {
+            if (!levelUpDelayTimeoutId) {
+                levelUpDelayTimeoutId = setTimeout(() => {
+                    levelUpDelayTimeoutId = null;
+                    startLevelUpBlink(displayLevel);
+                }, 1000);
+            }
+        } else {
+            startLevelUpBlink(displayLevel);
+        }
+        updateMusicForLevel();
     }
+}
+
+function updateMusicForLevel() {
+    try {
+        if (!__bgm) return;
+        const idx = Math.min(Math.max(currentLevel, 0), MUSIC_RATES.length - 1);
+        __bgm.playbackRate = MUSIC_RATES[idx];
+    } catch (e) {}
+}
+
+function startLevelUpBlink(displayLevel) {
+    try { if (levelUpBlinkRafId) cancelAnimationFrame(levelUpBlinkRafId); } catch (e) {}
+    levelUpPause = true;
+    levelUpBlinkVisible = false;
+    levelUpBlinkStart = performance.now();
+    lastLevelUpBlinkToggle = levelUpBlinkStart;
+    const msg = `LEVEL⠤${displayLevel}`;
+    const frame = (now) => {
+        if (gameOver) { levelUpPause = false; return; }
+        if (now - levelUpBlinkStart >= LEVEL_BLINK_MS) {
+            levelUpPause = false;
+            lastFrameTime = performance.now();
+            return;
+        }
+        if (now - lastLevelUpBlinkToggle >= BLINK_PERIOD_MS) {
+            levelUpBlinkVisible = !levelUpBlinkVisible;
+            lastLevelUpBlinkToggle = now;
+        }
+        const base = renderString();
+        const maxTrim = Math.min(BLINK_TAIL_TRIM, Math.max(0, base.length - (PLAYER_POS + 1)));
+        const baseTrim = base.slice(0, base.length - maxTrim);
+        const composed = baseTrim + (levelUpBlinkVisible ? msg : GROUND_CHAR.repeat(msg.length - 1));
+        writeHash(composed);
+        mirror(composed);
+        levelUpBlinkRafId = requestAnimationFrame(frame);
+    };
+    levelUpBlinkRafId = requestAnimationFrame(frame);
 }
 
 function randomInt(min, max) { // inclusive
@@ -335,27 +435,32 @@ function nextTile() {
     if (Math.random() < holeProb) {
         holeCountdown = randomInt(minHole, maxHole) - 1;
         lastEmittedChar = HOLE_CHAR;
+        lastTileWasHole = true; // ensure post-segment gap even for single-length
         return HOLE_CHAR;
     }
     if (Math.random() < stairProb) {
         stairCountdown = randomInt(minPlat, maxPlat) - 1;
         lastEmittedChar = STAIR_CHAR;
+        lastTileWasStair = true; // ensure post-segment gap even for single-length
         return STAIR_CHAR;
     }
     // Spawn ceiling only if previous tile was ground (no obstacle directly before)
     if (Math.random() < ceilingProb && lastEmittedChar === GROUND_CHAR) {
         ceilingCountdown = randomInt(minCeil, maxCeil) - 1;
         lastEmittedChar = CEILING_CHAR;
+        lastTileWasCeiling = true; // ensure post-segment gap even for single-length
         return CEILING_CHAR;
     }
     if (Math.random() < spikeProb) {
         spikeCountdown = randomInt(minSpike, maxSpike) - 1;
         lastEmittedChar = SPIKE_CHAR;
+        lastTileWasSpike = true; // ensure post-segment gap even for single-length
         return SPIKE_CHAR;
     }
     if (Math.random() < gatorProb) {
         gatorCountdown = randomInt(minGator, maxGator) - 1;
         lastEmittedChar = GATOR_CHAR;
+        lastTileWasGator = true; // ensure post-segment gap even for single-length
         return GATOR_CHAR;
     }
 
@@ -516,6 +621,8 @@ function endGame() {
   if (gameOverRafId) cancelAnimationFrame(gameOverRafId);
   if (gameOverBlinkRafId) cancelAnimationFrame(gameOverBlinkRafId);
   stopMusic();
+  if (!__sfxReady) initSfx();
+  playSafe(__sfxCrash);
   // Mark crash position and capture final scene
   scene[PLAYER_POS] = '†';
   const base = renderString();
@@ -555,6 +662,13 @@ function startJump() {
     if (jumping) return;
     jumping = true;
     jumpFrames = 5; // frames airborne
+    // throttled jump SFX to avoid over-saturation
+    const now = performance.now();
+    if (!__sfxReady) initSfx();
+    if (now - __lastJumpSfxAt > 120) {
+        __lastJumpSfxAt = now;
+        playSafe(__sfxJump);
+    }
 }
 
 document.addEventListener('keydown', (e) => {
