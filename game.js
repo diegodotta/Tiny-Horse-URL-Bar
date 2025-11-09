@@ -19,28 +19,32 @@ const JUMP_SPIKE_CHAR = '⠵';
 const GATOR_CHAR = 'v';
 const JUMP_GATOR_CHAR = 'v̇';
 const TICK_MS = 120;
-const BLINK_GAME_OVER = 'GAME⠤OVER⠤⠤⠤';
+const BLINK_GAME_OVER = 'GAME⠤OVER⠤⠤𐂃⠤';
 const BLINK_RESTART = 'PRESS⠤R⠤TO⠤RESTART⠤⠤';
 const BLINK_PRESTART = 'PRESS⠤SPACE⠤TO⠤START⠤⠤';
 const BLINK_TAIL_TRIM = isMobile ? 15 : 20; // number of chars to trim from base tail during blink
 // Level configs (easiest -> hardest)
 const LEVELS = [
-    { tickMs: 160, holeProb: 0.08, minHole: 1, maxHole: 2, gapHoles: 5, gapGlobal: 2,
-      stairProb: 0.05, minPlat: 2, maxPlat: 3, gapPlat: 5,
-      ceilingProb: 0.04, minCeil: 2, maxCeil: 2, gapCeil: 6,
+    { tickMs: 160,
+      holeProb: 0.08, minHole: 1, maxHole: 1, gapHoles: 5, gapGlobal: 2,
+      stairProb: 0.05, minPlat: 2, maxPlat: 5, gapPlat: 5,
+      ceilingProb: 0.04, minCeil: 1, maxCeil: 1, gapCeil: 6,
       spikeProb: 0.06, minSpike: 1, maxSpike: 1, gapSpike: 4,
       gatorProb: 0.00, minGator: 1, maxGator: 1, gapGator: 5 },
-    { tickMs: 130, holeProb: 0.12, minHole: 1, maxHole: 3, gapHoles: 4, gapGlobal: 1,
+    { tickMs: 130,
+      holeProb: 0.12, minHole: 1, maxHole: 3, gapHoles: 4, gapGlobal: 1,
       stairProb: 0.08, minPlat: 2, maxPlat: 4, gapPlat: 5,
-      ceilingProb: 0.06, minCeil: 2, maxCeil: 4, gapCeil: 6,
+      ceilingProb: 0.06, minCeil: 1, maxCeil: 2, gapCeil: 6,
       spikeProb: 0.10, minSpike: 1, maxSpike: 2, gapSpike: 3,
       gatorProb: 0.06, minGator: 1, maxGator: 2, gapGator: 4 },
-    { tickMs: 110, holeProb: 0.16, minHole: 1, maxHole: 3, gapHoles: 4, gapGlobal: 1,
+    { tickMs: 110,
+      holeProb: 0.16, minHole: 1, maxHole: 3, gapHoles: 4, gapGlobal: 1,
       stairProb: 0.10, minPlat: 2, maxPlat: 5, gapPlat: 4,
       ceilingProb: 0.08, minCeil: 2, maxCeil: 4, gapCeil: 5,
       spikeProb: 0.14, minSpike: 1, maxSpike: 2, gapSpike: 3,
       gatorProb: 0.08, minGator: 1, maxGator: 2, gapGator: 4 },
-    { tickMs: 95, holeProb: 0.20, minHole: 1, maxHole: 3, gapHoles: 3, gapGlobal: 0,
+    { tickMs: 95,
+      holeProb: 0.20, minHole: 1, maxHole: 3, gapHoles: 3, gapGlobal: 0,
       stairProb: 0.12, minPlat: 2, maxPlat: 6, gapPlat: 3,
       ceilingProb: 0.10, minCeil: 2, maxCeil: 5, gapCeil: 5,
       spikeProb: 0.18, minSpike: 1, maxSpike: 2, gapSpike: 3,
@@ -400,9 +404,9 @@ function mirror(s) {
     const elScore = document.getElementById('score-text');
     const elHigh = document.getElementById('high-score-text');
     if (elInstr) {
-        if (waitingStart) elInstr.textContent = isMobile ? 'Tap to start' : 'Press SPACE to start the game on your URL bar.';
-        else if (gameOver) elInstr.textContent = isMobile ? 'Game Over — Tap to restart' : 'Game Over — Press R to restart';
-        else elInstr.textContent = isMobile ? 'Tap to jump. Avoid obstacles.' : 'Press SPACE to jump. Avoid obstacles.';
+        if (waitingStart) elInstr.textContent = isMobile ? 'Tap to start' : 'Press SPACE to start the game in your URL bar.';
+        else if (gameOver) elInstr.textContent = isMobile ? 'Game Over! Tap to restart' : 'Game Over! Press R to restart';
+        else elInstr.textContent = isMobile ? 'Tap to jump. Avoid obstacles.' : 'Press the SPACE to jump. Avoid the obstacles.';
     }
     if (elUrlText) {
         elUrlText.textContent = s;
@@ -411,7 +415,7 @@ function mirror(s) {
         elScore.textContent = `🎯 Score: ${score}  Level: ${Math.min(currentLevel+1, LEVELS.length)}`;
     }
     if (elHigh) {
-        elHigh.textContent = `🏆 Highest score: ${highScore}`;
+        elHigh.textContent = `🏆 High score: ${highScore}`;
     }
     if (!__shareBound) {
         const btn = document.getElementById('share-btn');
@@ -419,7 +423,7 @@ function mirror(s) {
             __shareBound = true;
             btn.addEventListener('click', async () => {
                 try {
-                    const message = `Try to beat my horse (highest score: ${highScore})! https://diego.horse/jump`;
+                    const message = `Try to beat my horse (high score: ${highScore})! https://diego.horse/jump`;
                     if (navigator.share) {
                         await navigator.share({
                             text: message,
@@ -565,6 +569,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key.toLowerCase() === 'r') {
         e.preventDefault();
         resetGame();
+        startGameLoop();
     }
 });
 
