@@ -34,9 +34,9 @@ const SNAKE_CHAR = 's';
 const JUMP_SNAKE_CHAR = 'ṡ';
 const TICK_MS = 120;
 const BLINK_GAME_OVER = 'GAME⠤OVER⠤⠤𐂃⠤';
-const BLINK_RESTART = 'PRESS⠤R⠤TO⠤RESTART⠤⠤';
+const BLINK_RESTART = 'R⠤TO⠤RESTART⠤⠤';
 const BLINK_PRESTART = 'PRESS⠤SPACE⠤TO⠤START⠤⠤';
-const BLINK_TAIL_TRIM = isMobile ? 15 : 15; // number of chars to trim from base tail during blink
+const BLINK_TAIL_TRIM = isMobile ? 20 : 15; // number of chars to trim from base tail during blink
 // Level configs (easiest -> hardest)
 const LEVELS = [
     { tickMs: 160,
@@ -271,7 +271,7 @@ function resetGame() {
         const base = renderString();
         const maxTrim = Math.min(BLINK_TAIL_TRIM, Math.max(0, base.length - (PLAYER_POS + 1)));
         const baseTrim = base.slice(0, base.length - maxTrim);
-        const msg = isMobile ? 'TAP⠤TO⠤START⠤⠤' : BLINK_PRESTART;
+        const msg = isMobile ? 'JUMP⠤TO⠤START⠤⠤' : BLINK_PRESTART;
         const composed = baseTrim + (preStartBlinkVisible ? msg : GROUND_CHAR.repeat(msg.length - 1));
         writeHash(composed);
         mirror(composed);

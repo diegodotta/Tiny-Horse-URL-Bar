@@ -86,6 +86,7 @@
   width: 100%;
   padding: 12px 16px;
   font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .game .desktop-only {
