@@ -117,37 +117,18 @@ let jumping = false;
 let jumpFrames = 0; // remaining frames of jump
 let onPlatform = false;
 let score = 0;
-let loopId = null;
 let gameOver = false;
 let rafId = null;
 let lastFrameTime = 0;
 let currentLevel = -1;
 let waitingStart = true;
-let gameOverRafId = null;
-// Blinking animation state
 let gameOverBlinkRafId = null;
-let blinkPhase = 0; // 0: GAME_OVER (3s), 1: PRESS_R_TO_RESTART
-let blinkVisible = false;
-let blinkPhaseStart = 0;
-let lastBlinkToggle = 0;
-const BLINK_PERIOD_MS = 400;
-const FIRST_PHASE_MS = 3000;
 
 let highScore = 0;
 
-// Level-up blink state
+// Level-up marquee state
 let levelUpPause = false;
-let levelUpBlinkRafId = null;
-let levelUpBlinkVisible = false;
-let levelUpBlinkStart = 0;
-let lastLevelUpBlinkToggle = 0;
 const LEVEL_BLINK_MS = 2000;
-let levelUpDelayTimeoutId = null;
-
-// Pre-start blinking
-let preStartBlinkRafId = null;
-let preStartBlinkVisible = false;
-let lastPreStartBlinkToggle = 0;
 
 // Marquee state
 let marqueeRafId = null;
@@ -260,11 +241,7 @@ function resetGame() {
     gameOver = false;
     currentLevel = -1; // force apply on first tick
     waitingStart = true;
-    blinkPhase = 0;
-    blinkVisible = false;
-    blinkPhaseStart = 0;
-    lastBlinkToggle = 0;
-    try { if (levelUpDelayTimeoutId) { clearTimeout(levelUpDelayTimeoutId); levelUpDelayTimeoutId = null; } } catch (e) {}
+    
     // Load highest score before first mirror
     try {
         const v = parseInt((localStorage && localStorage.getItem('highScore')) || '0', 10);
@@ -272,7 +249,6 @@ function resetGame() {
     } catch (e) { /* ignore */ }
     writeHash(renderString());
     mirror(renderString());
-    if (loopId) clearInterval(loopId);
     if (rafId) cancelAnimationFrame(rafId);
     if (gameOverBlinkRafId) cancelAnimationFrame(gameOverBlinkRafId);
     stopMusic();
@@ -756,9 +732,7 @@ function tick() {
 
 function endGame() {
   gameOver = true;
-  if (loopId) clearInterval(loopId);
   if (rafId) cancelAnimationFrame(rafId);
-  if (gameOverRafId) cancelAnimationFrame(gameOverRafId);
   if (gameOverBlinkRafId) cancelAnimationFrame(gameOverBlinkRafId);
   stopMusic();
   if (!__sfxReady) initSfx();
