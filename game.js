@@ -149,7 +149,6 @@ let injectQueue = [];
 
 
 let __bgm = null;
-let __bgmReady = false;
 let __sfxStart = null;
 let __sfxJump = null;
 let __sfxCrash = null;
@@ -188,7 +187,6 @@ function startMusic() {
             __bgm.loop = true;
             __bgm.preload = 'auto';
             __bgm.volume = 0.6;
-            __bgm.addEventListener('canplay', () => { __bgmReady = true; }, { once: true });
             // prefer tempo change affecting pitch naturally
             try { if ('preservesPitch' in __bgm) __bgm.preservesPitch = false; } catch (e) {}
             try { if ('mozPreservesPitch' in __bgm) __bgm.mozPreservesPitch = false; } catch (e) {}
