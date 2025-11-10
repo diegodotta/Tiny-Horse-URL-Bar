@@ -188,9 +188,7 @@ function startMusic() {
             __bgm.preload = 'auto';
             __bgm.volume = 0.6;
             // prefer tempo change affecting pitch naturally
-            try { if ('preservesPitch' in __bgm) __bgm.preservesPitch = false; } catch (e) {}
-            try { if ('mozPreservesPitch' in __bgm) __bgm.mozPreservesPitch = false; } catch (e) {}
-            try { if ('webkitPreservesPitch' in __bgm) __bgm.webkitPreservesPitch = false; } catch (e) {}
+            disablePreservesPitch(__bgm);
             updateMusicForLevel();
         }
         const p = __bgm.play();
@@ -330,14 +328,8 @@ function startMarquee(message, untilTs) {
             return;
         }
         const base = renderString();
-        const maxTrim = Math.min(BLINK_TAIL_TRIM, Math.max(0, base.length - (PLAYER_POS + 1)));
-        const baseTrim = base.slice(0, base.length - maxTrim);
-        const windowLen = maxTrim;
-        const repeated = (marqueeMsg + GROUND_CHAR.repeat(4)).repeat(4);
-        const start = marqueeOffset % repeated.length;
-        let segment = '';
-        if (start + windowLen <= repeated.length) segment = repeated.slice(start, start + windowLen);
-        else segment = repeated.slice(start) + repeated.slice(0, (start + windowLen) - repeated.length);
+        const { baseTrim, windowLen } = tailWindow(base);
+        const segment = marqueeSegment(marqueeMsg, marqueeOffset, windowLen);
         const composed = baseTrim + segment;
         writeHash(composed);
         mirror(composed);
@@ -359,6 +351,81 @@ function randomInt(min, max) { // inclusive
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+// Helpers to avoid repetition
+function disablePreservesPitch(a) {
+    try { if ('preservesPitch' in a) a.preservesPitch = false; } catch (e) {}
+    try { if ('mozPreservesPitch' in a) a.mozPreservesPitch = false; } catch (e) {}
+    try { if ('webkitPreservesPitch' in a) a.webkitPreservesPitch = false; } catch (e) {}
+}
+
+function tailWindow(base) {
+    const maxTrim = Math.min(BLINK_TAIL_TRIM, Math.max(0, base.length - (PLAYER_POS + 1)));
+    return { baseTrim: base.slice(0, base.length - maxTrim), windowLen: maxTrim };
+}
+
+function marqueeSegment(message, offset, windowLen, spacer = GROUND_CHAR, repeats = 4) {
+    const repeated = (message + spacer.repeat(4)).repeat(repeats);
+    const start = offset % repeated.length;
+    if (start + windowLen <= repeated.length) return repeated.slice(start, start + windowLen);
+    return repeated.slice(start) + repeated.slice(0, (start + windowLen) - repeated.length);
+}
+
+function beginFlagInjection() {
+    injectQueue = [
+        ...Array(FLAG_PADDING).fill(GROUND_CHAR),
+        FLAG_CHAR,
+        ...Array(FLAG_PADDING).fill(GROUND_CHAR),
+    ];
+    const t = injectQueue.shift();
+    lastEmittedChar = t;
+    return t;
+}
+
+function consumeGapVar(get, set) {
+    if (get() > 0) {
+        set(get() - 1);
+        lastEmittedChar = GROUND_CHAR;
+        return GROUND_CHAR;
+    }
+    return null;
+}
+
+function consumeSeqVar(getCnt, setCnt, setLastFlag, ch) {
+    if (getCnt() > 0) {
+        setCnt(getCnt() - 1);
+        setLastFlag(true);
+        lastEmittedChar = ch;
+        return ch;
+    }
+    return null;
+}
+
+function enforcePostGap(getFlag, setFlag, setLocalGap, localGap) {
+    if (getFlag()) {
+        setLocalGap(localGap);
+        globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
+        setFlag(false);
+    }
+}
+
+function trySpawn(prob, minLen, maxLen, setCountdown, ch, setLastFlag, condition = true) {
+    if (condition && Math.random() < prob) {
+        setCountdown(randomInt(minLen, maxLen) - 1);
+        lastEmittedChar = ch;
+        setLastFlag(true); // ensure post-segment gap even for single-length
+        return ch;
+    }
+    return null;
+}
+
+// Hazard collision helper
+const HAZARDS_REQUIRE_GROUND = new Set([SPIKE_CHAR, GATOR_CHAR, BOULDER_CHAR, SNAKE_CHAR]);
+function isLethal(under, jumping, onPlatform) {
+    if (under === CEILING_CHAR) return jumping; // ceiling kills only if jumping
+    if (HAZARDS_REQUIRE_GROUND.has(under)) return !jumping && !onPlatform; // ground-only hazards
+    return false;
+}
+
 function nextTile() {
     // Highest priority: process any injected tiles (e.g., flag padding/flag)
     if (injectQueue.length > 0) {
@@ -369,181 +436,54 @@ function nextTile() {
     // Start injection when flag is pending: GROUND x N, FLAG, GROUND x N
     if (flagPending) {
         flagPending = false;
-        injectQueue = [
-            ...Array(FLAG_PADDING).fill(GROUND_CHAR),
-            FLAG_CHAR,
-            ...Array(FLAG_PADDING).fill(GROUND_CHAR),
-        ];
-        const t = injectQueue.shift();
-        lastEmittedChar = t;
-        return t;
+        return beginFlagInjection();
     }
     // Continue existing sequences
-    if (holeCountdown > 0) {
-        holeCountdown--;
-        lastTileWasHole = true;
-        lastEmittedChar = HOLE_CHAR;
-        return HOLE_CHAR;
-    }
-    if (stairCountdown > 0) {
-        stairCountdown--;
-        lastTileWasStair = true;
-        lastEmittedChar = STAIR_CHAR;
-        return STAIR_CHAR;
-    }
-    if (ceilingCountdown > 0) {
-        ceilingCountdown--;
-        lastTileWasCeiling = true;
-        lastEmittedChar = CEILING_CHAR;
-        return CEILING_CHAR;
-    }
-    if (spikeCountdown > 0) {
-        spikeCountdown--;
-        lastTileWasSpike = true;
-        lastEmittedChar = SPIKE_CHAR;
-        return SPIKE_CHAR;
-    }
-    if (gatorCountdown > 0) {
-        gatorCountdown--;
-        lastTileWasGator = true;
-        lastEmittedChar = GATOR_CHAR;
-        return GATOR_CHAR;
-    }
-    if (boulderCountdown > 0) {
-        boulderCountdown--;
-        lastTileWasBoulder = true;
-        lastEmittedChar = BOULDER_CHAR;
-        return BOULDER_CHAR;
-    }
-    if (snakeCountdown > 0) {
-        snakeCountdown--;
-        lastTileWasSnake = true;
-        lastEmittedChar = SNAKE_CHAR;
-        return SNAKE_CHAR;
+    {
+        const seqTile =
+            consumeSeqVar(() => holeCountdown, (v) => holeCountdown = v, (v) => lastTileWasHole = v, HOLE_CHAR) ||
+            consumeSeqVar(() => stairCountdown, (v) => stairCountdown = v, (v) => lastTileWasStair = v, STAIR_CHAR) ||
+            consumeSeqVar(() => ceilingCountdown, (v) => ceilingCountdown = v, (v) => lastTileWasCeiling = v, CEILING_CHAR) ||
+            consumeSeqVar(() => spikeCountdown, (v) => spikeCountdown = v, (v) => lastTileWasSpike = v, SPIKE_CHAR) ||
+            consumeSeqVar(() => gatorCountdown, (v) => gatorCountdown = v, (v) => lastTileWasGator = v, GATOR_CHAR) ||
+            consumeSeqVar(() => boulderCountdown, (v) => boulderCountdown = v, (v) => lastTileWasBoulder = v, BOULDER_CHAR) ||
+            consumeSeqVar(() => snakeCountdown, (v) => snakeCountdown = v, (v) => lastTileWasSnake = v, SNAKE_CHAR);
+        if (seqTile) return seqTile;
     }
 
     // If we just ended a sequence, start enforcing gaps
-    if (lastTileWasHole) {
-        gapCountdown = gapHoles;
-        globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
-        lastTileWasHole = false;
-    }
-    if (lastTileWasStair) {
-        stairGapCountdown = gapPlat;
-        globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
-        lastTileWasStair = false;
-    }
-    if (lastTileWasCeiling) {
-        ceilingGapCountdown = gapCeil;
-        globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
-        lastTileWasCeiling = false;
-    }
-    if (lastTileWasSpike) {
-        spikeGapCountdown = gapSpike;
-        globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
-        lastTileWasSpike = false;
-    }
-    if (lastTileWasGator) {
-        gatorGapCountdown = gapGator;
-        globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
-        lastTileWasGator = false;
-    }
-    if (lastTileWasBoulder) {
-        boulderGapCountdown = gapBoulder;
-        globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
-        lastTileWasBoulder = false;
-    }
-    if (lastTileWasSnake) {
-        snakeGapCountdown = gapSnake;
-        globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
-        lastTileWasSnake = false;
-    }
+    enforcePostGap(() => lastTileWasHole, (v) => lastTileWasHole = v, (v) => gapCountdown = v, gapHoles);
+    enforcePostGap(() => lastTileWasStair, (v) => lastTileWasStair = v, (v) => stairGapCountdown = v, gapPlat);
+    enforcePostGap(() => lastTileWasCeiling, (v) => lastTileWasCeiling = v, (v) => ceilingGapCountdown = v, gapCeil);
+    enforcePostGap(() => lastTileWasSpike, (v) => lastTileWasSpike = v, (v) => spikeGapCountdown = v, gapSpike);
+    enforcePostGap(() => lastTileWasGator, (v) => lastTileWasGator = v, (v) => gatorGapCountdown = v, gapGator);
+    enforcePostGap(() => lastTileWasBoulder, (v) => lastTileWasBoulder = v, (v) => boulderGapCountdown = v, gapBoulder);
+    enforcePostGap(() => lastTileWasSnake, (v) => lastTileWasSnake = v, (v) => snakeGapCountdown = v, gapSnake);
 
     // Enforce gaps
-    if (gapCountdown > 0) {
-        gapCountdown--;
-        lastEmittedChar = GROUND_CHAR;
-        return GROUND_CHAR;
-    }
-    if (globalGapCountdown > 0) {
-        globalGapCountdown--;
-        lastEmittedChar = GROUND_CHAR;
-        return GROUND_CHAR;
-    }
-    if (stairGapCountdown > 0) {
-        stairGapCountdown--;
-        lastEmittedChar = GROUND_CHAR;
-        return GROUND_CHAR;
-    }
-    if (ceilingGapCountdown > 0) {
-        ceilingGapCountdown--;
-        lastEmittedChar = GROUND_CHAR;
-        return GROUND_CHAR;
-    }
-    if (spikeGapCountdown > 0) {
-        spikeGapCountdown--;
-        lastEmittedChar = GROUND_CHAR;
-        return GROUND_CHAR;
-    }
-    if (gatorGapCountdown > 0) {
-        gatorGapCountdown--;
-        lastEmittedChar = GROUND_CHAR;
-        return GROUND_CHAR;
-    }
-    if (boulderGapCountdown > 0) {
-        boulderGapCountdown--;
-        lastEmittedChar = GROUND_CHAR;
-        return GROUND_CHAR;
-    }
-    if (snakeGapCountdown > 0) {
-        snakeGapCountdown--;
-        lastEmittedChar = GROUND_CHAR;
-        return GROUND_CHAR;
-    }
+    const gapTile =
+        consumeGapVar(() => gapCountdown, (v) => gapCountdown = v) ||
+        consumeGapVar(() => globalGapCountdown, (v) => globalGapCountdown = v) ||
+        consumeGapVar(() => stairGapCountdown, (v) => stairGapCountdown = v) ||
+        consumeGapVar(() => ceilingGapCountdown, (v) => ceilingGapCountdown = v) ||
+        consumeGapVar(() => spikeGapCountdown, (v) => spikeGapCountdown = v) ||
+        consumeGapVar(() => gatorGapCountdown, (v) => gatorGapCountdown = v) ||
+        consumeGapVar(() => boulderGapCountdown, (v) => boulderGapCountdown = v) ||
+        consumeGapVar(() => snakeGapCountdown, (v) => snakeGapCountdown = v);
+    if (gapTile) return gapTile;
 
     // Spawn new sequences
-    if (Math.random() < holeProb) {
-        holeCountdown = randomInt(minHole, maxHole) - 1;
-        lastEmittedChar = HOLE_CHAR;
-        lastTileWasHole = true; // ensure post-segment gap even for single-length
-        return HOLE_CHAR;
-    }
-    if (Math.random() < stairProb) {
-        stairCountdown = randomInt(minPlat, maxPlat) - 1;
-        lastEmittedChar = STAIR_CHAR;
-        lastTileWasStair = true; // ensure post-segment gap even for single-length
-        return STAIR_CHAR;
-    }
-    // Spawn ceiling only if previous tile was ground (no obstacle directly before)
-    if (Math.random() < ceilingProb && lastEmittedChar === GROUND_CHAR) {
-        ceilingCountdown = randomInt(minCeil, maxCeil) - 1;
-        lastEmittedChar = CEILING_CHAR;
-        lastTileWasCeiling = true; // ensure post-segment gap even for single-length
-        return CEILING_CHAR;
-    }
-    if (Math.random() < spikeProb) {
-        spikeCountdown = randomInt(minSpike, maxSpike) - 1;
-        lastEmittedChar = SPIKE_CHAR;
-        lastTileWasSpike = true; // ensure post-segment gap even for single-length
-        return SPIKE_CHAR;
-    }
-    if (Math.random() < gatorProb) {
-        gatorCountdown = randomInt(minGator, maxGator) - 1;
-        lastEmittedChar = GATOR_CHAR;
-        lastTileWasGator = true; // ensure post-segment gap even for single-length
-        return GATOR_CHAR;
-    }
-    if (Math.random() < boulderProb) {
-        boulderCountdown = randomInt(minBoulder, maxBoulder) - 1;
-        lastEmittedChar = BOULDER_CHAR;
-        lastTileWasBoulder = true;
-        return BOULDER_CHAR;
-    }
-    if (Math.random() < snakeProb) {
-        snakeCountdown = randomInt(minSnake, maxSnake) - 1;
-        lastEmittedChar = SNAKE_CHAR;
-        lastTileWasSnake = true;
-        return SNAKE_CHAR;
+    {
+        const spawned =
+            trySpawn(holeProb, minHole, maxHole, (v) => holeCountdown = v, HOLE_CHAR, (v) => lastTileWasHole = v) ||
+            trySpawn(stairProb, minPlat, maxPlat, (v) => stairCountdown = v, STAIR_CHAR, (v) => lastTileWasStair = v) ||
+            // ceiling: only if previous tile was ground (no obstacle directly before)
+            trySpawn(ceilingProb, minCeil, maxCeil, (v) => ceilingCountdown = v, CEILING_CHAR, (v) => lastTileWasCeiling = v, lastEmittedChar === GROUND_CHAR) ||
+            trySpawn(spikeProb, minSpike, maxSpike, (v) => spikeCountdown = v, SPIKE_CHAR, (v) => lastTileWasSpike = v) ||
+            trySpawn(gatorProb, minGator, maxGator, (v) => gatorCountdown = v, GATOR_CHAR, (v) => lastTileWasGator = v) ||
+            trySpawn(boulderProb, minBoulder, maxBoulder, (v) => boulderCountdown = v, BOULDER_CHAR, (v) => lastTileWasBoulder = v) ||
+            trySpawn(snakeProb, minSnake, maxSnake, (v) => snakeCountdown = v, SNAKE_CHAR, (v) => lastTileWasSnake = v);
+        if (spawned) return spawned;
     }
 
     lastEmittedChar = GROUND_CHAR;
@@ -677,32 +617,8 @@ function tick() {
         }
     }
 
-    // Ceiling rules: jumping under ceiling collides
-    if (underPlayer === CEILING_CHAR && jumping) {
-        endGame();
-        return;
-    }
-
-    // Spike rules: spikes kill unless jumping or on platform
-    if (underPlayer === SPIKE_CHAR && !jumping && !onPlatform) {
-        endGame();
-        return;
-    }
-
-    // Alligator rules: like spikes — kill unless jumping or on platform
-    if (underPlayer === GATOR_CHAR && !jumping && !onPlatform) {
-        endGame();
-        return;
-    }
-
-    // Boulder rules: like spikes — kill unless jumping or on platform
-    if (underPlayer === BOULDER_CHAR && !jumping && !onPlatform) {
-        endGame();
-        return;
-    }
-
-    // Snake rules: like spikes — kill unless jumping or on platform
-    if (underPlayer === SNAKE_CHAR && !jumping && !onPlatform) {
+    // Ceiling and ground hazards
+    if (isLethal(underPlayer, jumping, onPlatform)) {
         endGame();
         return;
     }
@@ -756,11 +672,7 @@ function endGame() {
   lastMarqueeStep = performance.now();
   const frame = (now) => {
     if (!gameOver) return;
-    const repeated = (marqueeMsg).repeat(4);
-    const start = marqueeOffset % repeated.length;
-    let segment = '';
-    if (start + windowLen <= repeated.length) segment = repeated.slice(start, start + windowLen);
-    else segment = repeated.slice(start) + repeated.slice(0, (start + windowLen) - repeated.length);
+    const segment = marqueeSegment(marqueeMsg, marqueeOffset, windowLen, GROUND_CHAR, 4);
     const composed = baseTrim + segment;
     writeHash(composed);
     mirror(composed);
