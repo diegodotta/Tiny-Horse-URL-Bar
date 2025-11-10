@@ -91,28 +91,18 @@ let gapGlobal = 0;
 
 let scene = new Array(SCENE_LENGTH).fill(GROUND_CHAR);
 let lastEmittedChar = GROUND_CHAR;
-let holeCountdown = 0;
-let stairCountdown = 0;
-let ceilingCountdown = 0;
-let spikeCountdown = 0;
-let gatorCountdown = 0;
-let boulderCountdown = 0;
-let snakeCountdown = 0;
-let gapCountdown = 0;
 let globalGapCountdown = 0;
-let lastTileWasHole = false;
-let stairGapCountdown = 0;
-let lastTileWasStair = false;
-let ceilingGapCountdown = 0;
-let lastTileWasCeiling = false;
-let spikeGapCountdown = 0;
-let lastTileWasSpike = false;
-let gatorGapCountdown = 0;
-let lastTileWasGator = false;
-let boulderGapCountdown = 0;
-let lastTileWasBoulder = false;
-let snakeGapCountdown = 0;
-let lastTileWasSnake = false;
+// Unified hazard state (Option B)
+const HAZARDS = [
+  { key: 'hole',    char: HOLE_CHAR,    prob: () => holeProb,    len: () => [minHole, maxHole],      gap: () => gapHoles,   condition: () => true },
+  { key: 'stair',   char: STAIR_CHAR,   prob: () => stairProb,   len: () => [minPlat, maxPlat],      gap: () => gapPlat,    condition: () => true },
+  { key: 'ceiling', char: CEILING_CHAR, prob: () => ceilingProb, len: () => [minCeil, maxCeil],      gap: () => gapCeil,    condition: () => lastEmittedChar === GROUND_CHAR },
+  { key: 'spike',   char: SPIKE_CHAR,   prob: () => spikeProb,   len: () => [minSpike, maxSpike],    gap: () => gapSpike,   condition: () => true },
+  { key: 'gator',   char: GATOR_CHAR,   prob: () => gatorProb,   len: () => [minGator, maxGator],    gap: () => gapGator,   condition: () => true },
+  { key: 'boulder', char: BOULDER_CHAR, prob: () => boulderProb, len: () => [minBoulder, maxBoulder],gap: () => gapBoulder, condition: () => true },
+  { key: 'snake',   char: SNAKE_CHAR,   prob: () => snakeProb,   len: () => [minSnake, maxSnake],    gap: () => gapSnake,   condition: () => true },
+];
+let hazardState = Object.fromEntries(HAZARDS.map(h => [h.key, { countdown: 0, last: false, gapCountdown: 0 }]));
 let jumping = false;
 let jumpFrames = 0; // remaining frames of jump
 let onPlatform = false;
@@ -160,17 +150,17 @@ function initSfx() {
         if (!__sfxStart) {
             __sfxStart = new Audio(domain + '/assets/start.mp3');
             __sfxStart.preload = 'auto';
-            __sfxStart.volume = 0.9;
+            __sfxStart.volume = 0.6;
         }
         if (!__sfxJump) {
             __sfxJump = new Audio(domain + '/assets/jump.m4a');
             __sfxJump.preload = 'auto';
-            __sfxJump.volume = 0.9;
+            __sfxJump.volume = 0.6;
         }
         if (!__sfxCrash) {
             __sfxCrash = new Audio(domain + '/assets/crash.mp3');
             __sfxCrash.preload = 'auto';
-            __sfxCrash.volume = 1.0;
+            __sfxCrash.volume = 0.6;
         }
         __sfxReady = true;
     } catch (e) {}
@@ -207,29 +197,9 @@ function stopMusic() {
 
 function resetGame() {
     scene = new Array(SCENE_LENGTH).fill(GROUND_CHAR);
-    holeCountdown = 0;
-    stairCountdown = 0;
-    ceilingCountdown = 0;
-    spikeCountdown = 0;
-    gatorCountdown = 0;
-    boulderCountdown = 0;
-    snakeCountdown = 0;
-    gapCountdown = 0;
     globalGapCountdown = 0;
     lastEmittedChar = GROUND_CHAR;
-    lastTileWasHole = false;
-    stairGapCountdown = 0;
-    lastTileWasStair = false;
-    ceilingGapCountdown = 0;
-    lastTileWasCeiling = false;
-    spikeGapCountdown = 0;
-    lastTileWasSpike = false;
-    gatorGapCountdown = 0;
-    boulderGapCountdown = 0;
-    snakeGapCountdown = 0;
-    lastTileWasGator = false;
-    lastTileWasBoulder = false;
-    lastTileWasSnake = false;
+    hazardState = Object.fromEntries(HAZARDS.map(h => [h.key, { countdown: 0, last: false, gapCountdown: 0 }]));
     jumping = false;
     jumpFrames = 0;
     onPlatform = false;
@@ -380,40 +350,58 @@ function beginFlagInjection() {
     lastEmittedChar = t;
     return t;
 }
+// Unified hazard helpers
+function continueSequences() {
+    for (const h of HAZARDS) {
+        const st = hazardState[h.key];
+        if (st.countdown > 0) {
+            st.countdown--;
+            st.last = true;
+            lastEmittedChar = h.char;
+            return h.char;
+        }
+    }
+    return null;
+}
 
-function consumeGapVar(get, set) {
-    if (get() > 0) {
-        set(get() - 1);
+function applyPostGaps() {
+    for (const h of HAZARDS) {
+        const st = hazardState[h.key];
+        if (st.last) {
+            st.gapCountdown = h.gap();
+            globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
+            st.last = false;
+        }
+    }
+}
+
+function enforceGaps() {
+    if (globalGapCountdown > 0) {
+        globalGapCountdown--;
         lastEmittedChar = GROUND_CHAR;
         return GROUND_CHAR;
     }
-    return null;
-}
-
-function consumeSeqVar(getCnt, setCnt, setLastFlag, ch) {
-    if (getCnt() > 0) {
-        setCnt(getCnt() - 1);
-        setLastFlag(true);
-        lastEmittedChar = ch;
-        return ch;
+    for (const h of HAZARDS) {
+        const st = hazardState[h.key];
+        if (st.gapCountdown > 0) {
+            st.gapCountdown--;
+            lastEmittedChar = GROUND_CHAR;
+            return GROUND_CHAR;
+        }
     }
     return null;
 }
 
-function enforcePostGap(getFlag, setFlag, setLocalGap, localGap) {
-    if (getFlag()) {
-        setLocalGap(localGap);
-        globalGapCountdown = Math.max(globalGapCountdown, gapGlobal);
-        setFlag(false);
-    }
-}
-
-function trySpawn(prob, minLen, maxLen, setCountdown, ch, setLastFlag, condition = true) {
-    if (condition && Math.random() < prob) {
-        setCountdown(randomInt(minLen, maxLen) - 1);
-        lastEmittedChar = ch;
-        setLastFlag(true); // ensure post-segment gap even for single-length
-        return ch;
+function spawnNewSequence() {
+    for (const h of HAZARDS) {
+        if (!h.condition()) continue;
+        if (Math.random() < h.prob()) {
+            const [minL, maxL] = h.len();
+            hazardState[h.key].countdown = randomInt(minL, maxL) - 1;
+            hazardState[h.key].last = true;
+            lastEmittedChar = h.char;
+            return h.char;
+        }
     }
     return null;
 }
@@ -440,49 +428,19 @@ function nextTile() {
     }
     // Continue existing sequences
     {
-        const seqTile =
-            consumeSeqVar(() => holeCountdown, (v) => holeCountdown = v, (v) => lastTileWasHole = v, HOLE_CHAR) ||
-            consumeSeqVar(() => stairCountdown, (v) => stairCountdown = v, (v) => lastTileWasStair = v, STAIR_CHAR) ||
-            consumeSeqVar(() => ceilingCountdown, (v) => ceilingCountdown = v, (v) => lastTileWasCeiling = v, CEILING_CHAR) ||
-            consumeSeqVar(() => spikeCountdown, (v) => spikeCountdown = v, (v) => lastTileWasSpike = v, SPIKE_CHAR) ||
-            consumeSeqVar(() => gatorCountdown, (v) => gatorCountdown = v, (v) => lastTileWasGator = v, GATOR_CHAR) ||
-            consumeSeqVar(() => boulderCountdown, (v) => boulderCountdown = v, (v) => lastTileWasBoulder = v, BOULDER_CHAR) ||
-            consumeSeqVar(() => snakeCountdown, (v) => snakeCountdown = v, (v) => lastTileWasSnake = v, SNAKE_CHAR);
-        if (seqTile) return seqTile;
+        const seq = continueSequences();
+        if (seq) return seq;
     }
-
     // If we just ended a sequence, start enforcing gaps
-    enforcePostGap(() => lastTileWasHole, (v) => lastTileWasHole = v, (v) => gapCountdown = v, gapHoles);
-    enforcePostGap(() => lastTileWasStair, (v) => lastTileWasStair = v, (v) => stairGapCountdown = v, gapPlat);
-    enforcePostGap(() => lastTileWasCeiling, (v) => lastTileWasCeiling = v, (v) => ceilingGapCountdown = v, gapCeil);
-    enforcePostGap(() => lastTileWasSpike, (v) => lastTileWasSpike = v, (v) => spikeGapCountdown = v, gapSpike);
-    enforcePostGap(() => lastTileWasGator, (v) => lastTileWasGator = v, (v) => gatorGapCountdown = v, gapGator);
-    enforcePostGap(() => lastTileWasBoulder, (v) => lastTileWasBoulder = v, (v) => boulderGapCountdown = v, gapBoulder);
-    enforcePostGap(() => lastTileWasSnake, (v) => lastTileWasSnake = v, (v) => snakeGapCountdown = v, gapSnake);
-
+    applyPostGaps();
     // Enforce gaps
-    const gapTile =
-        consumeGapVar(() => gapCountdown, (v) => gapCountdown = v) ||
-        consumeGapVar(() => globalGapCountdown, (v) => globalGapCountdown = v) ||
-        consumeGapVar(() => stairGapCountdown, (v) => stairGapCountdown = v) ||
-        consumeGapVar(() => ceilingGapCountdown, (v) => ceilingGapCountdown = v) ||
-        consumeGapVar(() => spikeGapCountdown, (v) => spikeGapCountdown = v) ||
-        consumeGapVar(() => gatorGapCountdown, (v) => gatorGapCountdown = v) ||
-        consumeGapVar(() => boulderGapCountdown, (v) => boulderGapCountdown = v) ||
-        consumeGapVar(() => snakeGapCountdown, (v) => snakeGapCountdown = v);
-    if (gapTile) return gapTile;
-
+    {
+        const gapTile = enforceGaps();
+        if (gapTile) return gapTile;
+    }
     // Spawn new sequences
     {
-        const spawned =
-            trySpawn(holeProb, minHole, maxHole, (v) => holeCountdown = v, HOLE_CHAR, (v) => lastTileWasHole = v) ||
-            trySpawn(stairProb, minPlat, maxPlat, (v) => stairCountdown = v, STAIR_CHAR, (v) => lastTileWasStair = v) ||
-            // ceiling: only if previous tile was ground (no obstacle directly before)
-            trySpawn(ceilingProb, minCeil, maxCeil, (v) => ceilingCountdown = v, CEILING_CHAR, (v) => lastTileWasCeiling = v, lastEmittedChar === GROUND_CHAR) ||
-            trySpawn(spikeProb, minSpike, maxSpike, (v) => spikeCountdown = v, SPIKE_CHAR, (v) => lastTileWasSpike = v) ||
-            trySpawn(gatorProb, minGator, maxGator, (v) => gatorCountdown = v, GATOR_CHAR, (v) => lastTileWasGator = v) ||
-            trySpawn(boulderProb, minBoulder, maxBoulder, (v) => boulderCountdown = v, BOULDER_CHAR, (v) => lastTileWasBoulder = v) ||
-            trySpawn(snakeProb, minSnake, maxSnake, (v) => snakeCountdown = v, SNAKE_CHAR, (v) => lastTileWasSnake = v);
+        const spawned = spawnNewSequence();
         if (spawned) return spawned;
     }
 
