@@ -12,7 +12,7 @@ const isMobile = typeof window !== 'undefined' && window.matchMedia && window.ma
 const isSafari = typeof navigator !== 'undefined' && /safari/i.test(navigator.userAgent) && !/chrome|chromium|crios|edg/i.test(navigator.userAgent);
 let __mobileInit = false;
 
-const SCENE_LENGTH = isMobile ? 40 : 40;
+const SCENE_LENGTH = isMobile ? 40 : 50;
 const PLAYER_POS = 3; // fixed player position in the scene
 const GROUND_CHAR = '⠤';
 const HOLE_CHAR = '_'; // Braille blank U+2800
@@ -32,11 +32,13 @@ const BOULDER_CHAR = 'o';
 const JUMP_BOULDER_CHAR = 'ȯ';
 const SNAKE_CHAR = 's';
 const JUMP_SNAKE_CHAR = 'ṡ';
+const FLAG_CHAR = '⚑';
 const TICK_MS = 120;
-const BLINK_GAME_OVER = 'GAME⠤OVER⠤⠤𐂃⠤';
-const BLINK_RESTART = 'R⠤TO⠤RESTART⠤⠤';
+const BLINK_GAME_OVER = '⠤⠤⠤GAME⠤OVER';
+const BLINK_RESTART = 'PRESS⠤R⠤TO⠤RESTART';
 const BLINK_PRESTART = 'PRESS⠤SPACE⠤TO⠤START⠤⠤';
-const BLINK_TAIL_TRIM = isMobile ? 30 : 15; // number of chars to trim from base tail during blink
+const BLINK_SCORE = 'YOUR⠤SCORE⠤IS⠤';
+const BLINK_TAIL_TRIM = isMobile ? 35 : 45; // number of chars to trim from base tail during blink
 // Level configs (easiest -> hardest)
 const LEVELS = [
     { tickMs: 160,
@@ -146,6 +148,22 @@ let levelUpDelayTimeoutId = null;
 let preStartBlinkRafId = null;
 let preStartBlinkVisible = false;
 let lastPreStartBlinkToggle = 0;
+
+// Marquee state
+let marqueeRafId = null;
+let marqueeOffset = 0;
+let marqueeMsg = '';
+let marqueeUntil = 0; // timestamp when marquee auto-stops (<=0 means infinite)
+let marqueeActive = false;
+const MARQUEE_STEP_MS = 200;
+let lastMarqueeStep = 0;
+
+// Flag/level trigger state
+const DIST_TO_PLAYER = SCENE_LENGTH - PLAYER_POS - 1;
+let nextLevelIndex = 1; // first flag targets LEVEL 2
+let flagPending = false;
+const FLAG_PADDING = 10; // ground tiles before and after flag
+let injectQueue = [];
 
 
 
@@ -258,26 +276,12 @@ function resetGame() {
     if (rafId) cancelAnimationFrame(rafId);
     if (gameOverBlinkRafId) cancelAnimationFrame(gameOverBlinkRafId);
     stopMusic();
+    // Reset flag/level trigger state
+    nextLevelIndex = 1;
+    flagPending = false;
 
-    // Start pre-start blink message
-    preStartBlinkVisible = false;
-    lastPreStartBlinkToggle = performance.now();
-    const preFrame = (now) => {
-        if (!waitingStart) return; // stop when game starts
-        if (now - lastPreStartBlinkToggle >= BLINK_PERIOD_MS) {
-            preStartBlinkVisible = !preStartBlinkVisible;
-            lastPreStartBlinkToggle = now;
-        }
-        const base = renderString();
-        const maxTrim = Math.min(BLINK_TAIL_TRIM, Math.max(0, base.length - (PLAYER_POS + 1)));
-        const baseTrim = base.slice(0, base.length - maxTrim);
-        const msg = isMobile ? 'JUMP⠤TO⠤START⠤⠤' : BLINK_PRESTART;
-        const composed = baseTrim + (preStartBlinkVisible ? msg : GROUND_CHAR.repeat(msg.length - 1));
-        writeHash(composed);
-        mirror(composed);
-        preStartBlinkRafId = requestAnimationFrame(preFrame);
-    };
-    preStartBlinkRafId = requestAnimationFrame(preFrame);
+    // Start pre-start marquee message (infinite loop until game starts)
+    startMarquee(isMobile ? 'JUMP⠤TO⠤START⠤⠤' : BLINK_PRESTART, 0);
 }
 
 function startGameLoop() {
@@ -287,7 +291,9 @@ function startGameLoop() {
     if (!__sfxReady) initSfx();
     playSafe(__sfxStart);
     startMusic();
-    if (preStartBlinkRafId) cancelAnimationFrame(preStartBlinkRafId);
+    // Ensure initial level configuration is applied before ticking
+    applyLevelByIndex(0);
+    stopMarquee();
     const frame = () => {
         if (gameOver) return;
         const now = performance.now();
@@ -300,38 +306,25 @@ function startGameLoop() {
     rafId = requestAnimationFrame(frame);
 }
 
-function applyLevelByScore() {
-    let newLevel = 0;
-    for (let i = 0; i < LEVEL_THRESHOLDS.length; i++) {
-        if (score >= LEVEL_THRESHOLDS[i]) newLevel = i;
-    }
-    if (newLevel !== currentLevel) {
-        currentLevel = newLevel;
-        const cfg = LEVELS[Math.min(newLevel, LEVELS.length - 1)];
-        tickMs = cfg.tickMs;
-        holeProb = cfg.holeProb; minHole = cfg.minHole; maxHole = cfg.maxHole; gapHoles = cfg.gapHoles;
-        stairProb = cfg.stairProb; minPlat = cfg.minPlat; maxPlat = cfg.maxPlat; gapPlat = cfg.gapPlat;
-        ceilingProb = cfg.ceilingProb; minCeil = cfg.minCeil; maxCeil = cfg.maxCeil; gapCeil = cfg.gapCeil;
-        spikeProb = cfg.spikeProb; minSpike = cfg.minSpike; maxSpike = cfg.maxSpike; gapSpike = cfg.gapSpike;
-        gatorProb = cfg.gatorProb; minGator = cfg.minGator; maxGator = cfg.maxGator; gapGator = cfg.gapGator;
-        boulderProb = cfg.boulderProb; minBoulder = cfg.minBoulder; maxBoulder = cfg.maxBoulder; gapBoulder = cfg.gapBoulder;
-        snakeProb = cfg.snakeProb; minSnake = cfg.minSnake; maxSnake = cfg.maxSnake; gapSnake = cfg.gapSnake;
-        gapGlobal = cfg.gapGlobal || 0;
+function applyLevelByIndex(newLevel) {
+    if (newLevel === currentLevel) return;
+    currentLevel = newLevel;
+    const cfg = LEVELS[Math.min(newLevel, LEVELS.length - 1)];
+    tickMs = cfg.tickMs;
+    holeProb = cfg.holeProb; minHole = cfg.minHole; maxHole = cfg.maxHole; gapHoles = cfg.gapHoles;
+    stairProb = cfg.stairProb; minPlat = cfg.minPlat; maxPlat = cfg.maxPlat; gapPlat = cfg.gapPlat;
+    ceilingProb = cfg.ceilingProb; minCeil = cfg.minCeil; maxCeil = cfg.maxCeil; gapCeil = cfg.gapCeil;
+    spikeProb = cfg.spikeProb; minSpike = cfg.minSpike; maxSpike = cfg.maxSpike; gapSpike = cfg.gapSpike;
+    gatorProb = cfg.gatorProb; minGator = cfg.minGator; maxGator = cfg.maxGator; gapGator = cfg.gapGator;
+    boulderProb = cfg.boulderProb; minBoulder = cfg.minBoulder; maxBoulder = cfg.maxBoulder; gapBoulder = cfg.gapBoulder;
+    snakeProb = cfg.snakeProb; minSnake = cfg.minSnake; maxSnake = cfg.maxSnake; gapSnake = cfg.gapSnake;
+    gapGlobal = cfg.gapGlobal || 0;
 
-        // Start level-up blink (pause gameplay for 2s)
-        const displayLevel = Math.min(currentLevel + 1, LEVELS.length);
-        if (displayLevel === 1) {
-            if (!levelUpDelayTimeoutId) {
-                levelUpDelayTimeoutId = setTimeout(() => {
-                    levelUpDelayTimeoutId = null;
-                    startLevelUpBlink(displayLevel);
-                }, 1000);
-            }
-        } else {
-            startLevelUpBlink(displayLevel);
-        }
-        updateMusicForLevel();
+    const displayLevel = Math.min(currentLevel + 1, LEVELS.length);
+    if (displayLevel > 1) {
+        startLevelUpMarquee(displayLevel);
     }
+    updateMusicForLevel();
 }
 
 function updateMusicForLevel() {
@@ -342,33 +335,50 @@ function updateMusicForLevel() {
     } catch (e) {}
 }
 
-function startLevelUpBlink(displayLevel) {
-    try { if (levelUpBlinkRafId) cancelAnimationFrame(levelUpBlinkRafId); } catch (e) {}
+function startLevelUpMarquee(displayLevel) {
     levelUpPause = true;
-    levelUpBlinkVisible = false;
-    levelUpBlinkStart = performance.now();
-    lastLevelUpBlinkToggle = levelUpBlinkStart;
-    const msg = `LEVEL⠤${displayLevel}${GROUND_CHAR.repeat(BLINK_TAIL_TRIM - 8)}`;
+    startMarquee(`LEVEL⠤${displayLevel}⠤⠤`, performance.now() + LEVEL_BLINK_MS);
+}
+
+function startMarquee(message, untilTs) {
+    try { if (marqueeRafId) cancelAnimationFrame(marqueeRafId); } catch (e) {}
+    marqueeMsg = message;
+    marqueeOffset = 0;
+    marqueeUntil = untilTs || 0;
+    marqueeActive = true;
+    lastMarqueeStep = performance.now();
     const frame = (now) => {
-        if (gameOver) { levelUpPause = false; return; }
-        if (now - levelUpBlinkStart >= LEVEL_BLINK_MS) {
+        if (!marqueeActive) return;
+        if (marqueeUntil > 0 && now >= marqueeUntil) {
+            marqueeActive = false;
             levelUpPause = false;
             lastFrameTime = performance.now();
             return;
         }
-        if (now - lastLevelUpBlinkToggle >= BLINK_PERIOD_MS) {
-            levelUpBlinkVisible = !levelUpBlinkVisible;
-            lastLevelUpBlinkToggle = now;
-        }
         const base = renderString();
         const maxTrim = Math.min(BLINK_TAIL_TRIM, Math.max(0, base.length - (PLAYER_POS + 1)));
         const baseTrim = base.slice(0, base.length - maxTrim);
-        const composed = baseTrim + (levelUpBlinkVisible ? msg : GROUND_CHAR.repeat(msg.length - 1));
+        const windowLen = maxTrim;
+        const repeated = (marqueeMsg + GROUND_CHAR.repeat(4)).repeat(4);
+        const start = marqueeOffset % repeated.length;
+        let segment = '';
+        if (start + windowLen <= repeated.length) segment = repeated.slice(start, start + windowLen);
+        else segment = repeated.slice(start) + repeated.slice(0, (start + windowLen) - repeated.length);
+        const composed = baseTrim + segment;
         writeHash(composed);
         mirror(composed);
-        levelUpBlinkRafId = requestAnimationFrame(frame);
+        if (now - lastMarqueeStep >= MARQUEE_STEP_MS) {
+            marqueeOffset++;
+            lastMarqueeStep = now;
+        }
+        marqueeRafId = requestAnimationFrame(frame);
     };
-    levelUpBlinkRafId = requestAnimationFrame(frame);
+    marqueeRafId = requestAnimationFrame(frame);
+}
+
+function stopMarquee() {
+    marqueeActive = false;
+    try { if (marqueeRafId) cancelAnimationFrame(marqueeRafId); } catch (e) {}
 }
 
 function randomInt(min, max) { // inclusive
@@ -376,6 +386,24 @@ function randomInt(min, max) { // inclusive
 }
 
 function nextTile() {
+    // Highest priority: process any injected tiles (e.g., flag padding/flag)
+    if (injectQueue.length > 0) {
+        const t = injectQueue.shift();
+        lastEmittedChar = t;
+        return t;
+    }
+    // Start injection when flag is pending: GROUND x N, FLAG, GROUND x N
+    if (flagPending) {
+        flagPending = false;
+        injectQueue = [
+            ...Array(FLAG_PADDING).fill(GROUND_CHAR),
+            FLAG_CHAR,
+            ...Array(FLAG_PADDING).fill(GROUND_CHAR),
+        ];
+        const t = injectQueue.shift();
+        lastEmittedChar = t;
+        return t;
+    }
     // Continue existing sequences
     if (holeCountdown > 0) {
         holeCountdown--;
@@ -633,6 +661,15 @@ function mirror(s) {
 function tick() {
     if (gameOver) return;
 
+    // Schedule flag spawn so it will reach the player exactly at LEVEL_THRESHOLDS[nextLevelIndex]
+    if (nextLevelIndex < LEVEL_THRESHOLDS.length) {
+        // Start injection earlier by FLAG_PADDING so the FLAG reaches the player exactly at threshold
+        const spawnAt = Math.max(0, LEVEL_THRESHOLDS[nextLevelIndex] - DIST_TO_PLAYER - FLAG_PADDING);
+        if (score === spawnAt) {
+            flagPending = true;
+        }
+    }
+
     // Scroll scene left and append next tile
     scene.shift();
     scene.push(nextTile());
@@ -696,13 +733,21 @@ function tick() {
         return;
     }
 
+    // Flag trigger: touching the flag levels up
+    if (underPlayer === FLAG_CHAR) {
+        // advance to next level, show marquee
+        const newIndex = Math.min(nextLevelIndex, LEVELS.length - 1);
+        applyLevelByIndex(newIndex);
+        nextLevelIndex = Math.min(nextLevelIndex + 1, LEVEL_THRESHOLDS.length - 1);
+    }
+
     // Score for each successful tick advanced
     score++;
     if (score > highScore) {
         highScore = score;
         try { localStorage && localStorage.setItem('highScore', String(highScore)); } catch (e) { /* ignore */ }
     }
-    applyLevelByScore();
+    // No score-based level changes; levels change on flag touch only
 
     const s = renderString();
     writeHash(s);
@@ -723,30 +768,34 @@ function endGame() {
   const base = renderString();
   // Trim some tail characters (right side) to make room for blinking messages, keep crash marker intact
   const maxTrim = Math.min(BLINK_TAIL_TRIM, Math.max(0, base.length - (PLAYER_POS + 1)));
-  const baseForBlink = base.slice(0, base.length - maxTrim);
-  // Blink sequence: GAME_OVER for 3s, then PRESS_R_TO_RESTART indefinitely
-  blinkPhase = 0;
-  blinkVisible = false;
-  blinkPhaseStart = performance.now();
-  lastBlinkToggle = blinkPhaseStart;
+  const baseTrim = base.slice(0, base.length - maxTrim);
+  const windowLen = maxTrim;
+  // Rolling marquee alternating between GAME OVER, SCORE, and RESTART
+  const scoreMsg = BLINK_SCORE + String(score);
+  const combined = (
+    BLINK_GAME_OVER + GROUND_CHAR.repeat(6) +
+    scoreMsg + GROUND_CHAR.repeat(6) +
+    BLINK_RESTART + GROUND_CHAR.repeat(6)
+  );
+  try { if (gameOverBlinkRafId) cancelAnimationFrame(gameOverBlinkRafId); } catch (e) {}
+  marqueeMsg = combined;
+  marqueeOffset = 0;
+  marqueeActive = true;
+  lastMarqueeStep = performance.now();
   const frame = (now) => {
     if (!gameOver) return;
-    // switch phase after 3 seconds
-    if (blinkPhase === 0 && now - blinkPhaseStart >= FIRST_PHASE_MS) {
-      blinkPhase = 1;
-      blinkPhaseStart = now;
-      // ensure immediate redraw on phase change
-      lastBlinkToggle = now - BLINK_PERIOD_MS;
-    }
-    // toggle visibility
-    if (now - lastBlinkToggle >= BLINK_PERIOD_MS) {
-      blinkVisible = !blinkVisible;
-      lastBlinkToggle = now;
-    }
-    const msg = blinkPhase === 0 ? BLINK_GAME_OVER : BLINK_RESTART;
-    const composed = baseForBlink + (blinkVisible ? msg : GROUND_CHAR.repeat(msg.length - 1));
+    const repeated = (marqueeMsg).repeat(4);
+    const start = marqueeOffset % repeated.length;
+    let segment = '';
+    if (start + windowLen <= repeated.length) segment = repeated.slice(start, start + windowLen);
+    else segment = repeated.slice(start) + repeated.slice(0, (start + windowLen) - repeated.length);
+    const composed = baseTrim + segment;
     writeHash(composed);
     mirror(composed);
+    if (now - lastMarqueeStep >= MARQUEE_STEP_MS) {
+      marqueeOffset++;
+      lastMarqueeStep = now;
+    }
     gameOverBlinkRafId = requestAnimationFrame(frame);
   };
   gameOverBlinkRafId = requestAnimationFrame(frame);
