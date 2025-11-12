@@ -1,127 +1,62 @@
 /* Base layout */
 
-.game {
-  --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  margin: 0;
-  font-family: var(--font);
+
+:root {
+  --border-color: rgba(150,150,150,0.4);
+  --background-color: rgba(150,150,150,0.1);
 }
 
-.game h1 {
-  font-size: 28px;
-  margin: 8px 0 16px;
-}
 
-/* Panels */
-.game .panel {
-  border-radius: 8px;
-  padding: 12px 14px;
-  margin: 10px 0;
-  background: rgba(150,150,150,0.1);
-}
-
-/* URL mimic line */
-.game #url {
-  display: flex;
-  align-items: center;
-  font-family: var(--font);
-  line-height: 1.2;
-  border-radius: 10em;
-  padding: 8px 10px;
-  white-space: nowrap;
+/* Tiny Mario HUD */
+.tiny-horse { 
+  max-width: 800px; 
+  margin: 12px auto; 
+  border: 1px solid var(--border-color); 
+  border-radius: 8px; 
+  background: var(--background-color);
   overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 14px;
 }
-
-.game #url:before {
-  content: "🌐";
-  opacity: 0.5;
-  margin: 8px;
-}
-
-.game #url-text {
+.tiny-horse .hud-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
+.tiny-horse .hud-instructions { border-bottom: 1px solid var(--border-color); }
+.tiny-horse .hud-url { align-items: stretch; }
+.tiny-horse #url-display {
+  display: block;
+  flex: 1 1 auto;
   white-space: pre;
-  flex: 1 1 auto;
+  overflow-x: hidden;
 }
-
-.game .icon-btn {
-  appearance: none;
-  border: 1px solid #e2e2e2;
-  background: #fff;
-  border-radius: 999px;
-  padding: 6px 10px;
-  cursor: pointer;
-  line-height: 1;
-}
-.game .icon-btn:hover { background: #f3f3f3; }
-.game .icon-btn:active { transform: translateY(1px); }
-
-/* Instructions */
-.game #instructions {
-  color: #0b5;
-  border: 1px solid #0b5;
-}
-
-.game #instructions:before {
-  content: "ℹ️";
-  padding-right: 10px;
-}
-
-/* Score */
-
-.game .score, .game .highscore {
+.tiny-horse .url-zoom { display: inline-flex; gap: 6px;  }
+.tiny-horse #instructions { flex: 1}
+.tiny-horse #instructions::before { content: 'ℹ️'; margin-right: 8px; }
+.tiny-horse .hud-emoji { width: 18px; display: inline-flex; justify-content: center; }
+.tiny-horse .hud-stats { justify-content: flex-start; width: 100%; flex-wrap: nowrap; gap: 8px; }
+.tiny-horse #score { flex: 1 1 0; min-width: 0; text-align: left; margin-right: 0; }
+.tiny-horse #score:before { content: '📊'; margin-right: 8px; }
+.tiny-horse #high { flex: 1 1 0; min-width: 0; text-align: right; margin-right: 0; }
+.tiny-horse button { padding: 2px 8px; cursor: pointer; border: 1px solid var(--border-color); border-radius: 6px; background: #fafafa; white-space: nowrap; flex: 0 0 auto; }
+.tiny-horse button:hover { background: #f0f0f0; }
+.tiny-horse #share { margin-right: 20px; }
+.tiny-horse .hud-credits {  color: #666; border-top: 1px solid var(--border-color); }
+.tiny-horse .hud-credits:before { content: '𐂃';  }
+.tiny-horse .controls {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 1px;
+  margin: auto;
+  flex-wrap: nowrap;
+  justify-content: center;
+  padding: 1em;
+}
+.tiny-horse .controls button {
+    font-size: 2em;
+    background: none;
+    border: 2px solid;
+    margin: 2px;
+    padding: 1em;
+    width: 50%;
 }
 
-.game #score-text {
-  flex: 1 1 auto;
+.tiny-horse .touch-only { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .tiny-horse .controls.touch-only { display: flex; }
 }
-
-.game #score .icon-btn, .game #high-score .icon-btn {
-  margin-left: auto;
-}
-
-.game .controls .icon-btn {
-  width: 100%;
-  padding: 12px 16px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.game .desktop-only {
-  display: none;
-}
-
-/* Desktop: hide URL mirror where URL bar is visible */
-@media (hover: hover) and (pointer: fine) {
-  .game #url:before {
-    content: "🌐 https://diego.horse/jump/";
-  }
-  .game .mobile-only, .game #url {
-    display: none;
-  }
-  .game .desktop-only { display: flex; }
-}
-
-/* Safari desktop override: show the URL mirror even on desktop */
-.safari-desktop .game #url {
-  display: flex !important;
-}
-
-/* Hidden input to summon mobile keyboard */
-.game .mobile-hidden-input {
-  position: absolute;
-  top: -1000px;
-  left: -1000px;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-
-

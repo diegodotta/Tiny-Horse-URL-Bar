@@ -74,7 +74,7 @@ const LEVELS = [
       boulderProb: 0.12, minBoulder: 1, maxBoulder: 3, gapBoulder: 3,
       snakeProb: 0.12, minSnake: 1, maxSnake: 2, gapSnake: 3 },
 ];
-const LEVEL_THRESHOLDS = [0, 100, 200, 300];
+const LEVEL_THRESHOLDS = [0, 120, 240, 360];
 // Music tempo per level (aligned with LEVELS). Tune as desired.
 const MUSIC_RATES = [0.80, 0.90, 1.0, 1.1];
 
@@ -487,25 +487,25 @@ function writeHash(s) {
 let __shareBound = false;
 function mirror(s) {
     const elInstr = document.getElementById('instructions');
-    const elUrlText = document.getElementById('url-text');
-    const elScore = document.getElementById('score-text');
-    const elHigh = document.getElementById('high-score-text');
+    const elUrlDisplay = document.getElementById('url-display');
+    const elScore = document.getElementById('score');
+    const elHigh = document.getElementById('high');
     if (elInstr) {
-        if (waitingStart) elInstr.textContent = isMobile ? 'Tap JUMP to start' : 'Press SPACE to start the game in your URL bar.';
-        else if (gameOver) elInstr.textContent = isMobile ? 'Game Over! Tap JUMP to restart' : 'Game Over! Press R to restart';
-        else elInstr.textContent = isMobile ? 'Tap JUMP to jump. Avoid obstacles.' : 'Press the SPACE to jump. Avoid the obstacles.';
+        if (waitingStart) elInstr.textContent = isMobile ? 'Tap JUMP to start' : 'Press SPACE to start the 𐂃 Tiny Horse in your URL bar.';
+        else if (gameOver) elInstr.textContent = 'Game Over! Press R to restart';
+        else elInstr.textContent = 'JUMP to avoid obstacles.';
     }
-    if (elUrlText) {
-        elUrlText.textContent = s;
+    if (elUrlDisplay) {
+        elUrlDisplay.textContent = s;
     }
     if (elScore) {
-        elScore.textContent = `🎯 Score: ${score}  Level: ${Math.min(currentLevel+1, LEVELS.length)}`;
+        elScore.textContent = `Score: ${score}`;
     }
     if (elHigh) {
-        elHigh.textContent = `🏆 High score: ${highScore}`;
+        elHigh.textContent = `High score: ${highScore}`;
     }
     if (!__shareBound) {
-        const btn = document.getElementById('share-btn');
+        const btn = document.getElementById('share');
         if (btn) {
             __shareBound = true;
             btn.addEventListener('click', async () => {
@@ -518,12 +518,10 @@ function mirror(s) {
                         setTimeout(() => { btn.textContent = old; }, 1200);
                     }
                     if (navigator.share) {
-                        await navigator.share({
-                            text: message,
-                        });
-                    } 
+                        await navigator.share({ text: message });
+                    }
                 } catch (e) {
-                    // Ignore if user cancels native share
+                    // ignore
                 }
             });
         }
@@ -677,25 +675,81 @@ document.addEventListener('keydown', (e) => {
 window.onload = () => {
     try { if (isSafari && !isMobile) { document.documentElement.classList.add('safari-desktop'); } } catch (e) {}
     resetGame();
+    initHudControls();
     initMobileControls();
 };
 
 function initMobileControls() {
     if (__mobileInit) return;
     __mobileInit = true;
-    const btn = document.getElementById('mobile-jump-btn');
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-        if (gameOver) {
+    const jumpBtn = document.getElementById('mobile-jump-btn');
+    const restartBtn = document.getElementById('mobile-restart-btn');
+    if (jumpBtn) {
+        const onJump = () => {
+            if (gameOver) {
+                resetGame();
+                startGameLoop();
+                return;
+            }
+            if (waitingStart) {
+                startGameLoop();
+                startJump();
+                return;
+            }
+            startJump();
+        };
+        jumpBtn.addEventListener('click', onJump);
+        jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); onJump(); }, { passive: false });
+    }
+    if (restartBtn) {
+        const onRestart = () => {
             resetGame();
             startGameLoop();
-            return;
-        }
-        if (waitingStart) {
-            startGameLoop();
-            startJump();
-            return;
-        }
-        startJump();
-    });
+        };
+        restartBtn.addEventListener('click', onRestart);
+        restartBtn.addEventListener('touchstart', (e) => { e.preventDefault(); onRestart(); }, { passive: false });
+    }
+}
+
+// HUD controls: toggle URL display visibility and font zoom
+function initHudControls() {
+    try {
+        const urlRow = document.querySelector('.hud-url');
+        const urlEl = document.getElementById('url-display');
+        const toggleBtn = document.getElementById('toggle-url');
+        const minusBtn = document.getElementById('url-font-minus');
+        const plusBtn = document.getElementById('url-font-plus');
+        if (!urlRow || !urlEl) return;
+        // restore settings
+        let visible = true;
+        let size = 14;
+        try {
+            const v = localStorage.getItem('hud_url_visible');
+            if (v === '0') visible = false;
+            const s = parseInt(localStorage.getItem('hud_url_font') || '14', 10);
+            if (!isNaN(s)) size = Math.min(40, Math.max(10, s));
+        } catch (e) {}
+        const apply = () => {
+            urlRow.style.display = visible ? 'flex' : 'none';
+            if (toggleBtn) toggleBtn.textContent = visible ? 'Hide URL Bar' : 'Show URL Bar';
+            urlEl.style.fontSize = size + 'px';
+        };
+        apply();
+        if (toggleBtn) toggleBtn.addEventListener('click', () => {
+            visible = !visible;
+            apply();
+            try { localStorage.setItem('hud_url_visible', visible ? '1' : '0'); } catch (e) {}
+        });
+        const clamp = (n) => Math.min(40, Math.max(14, n));
+        if (minusBtn) minusBtn.addEventListener('click', () => {
+            size = clamp(size - 1);
+            apply();
+            try { localStorage.setItem('hud_url_font', String(size)); } catch (e) {}
+        });
+        if (plusBtn) plusBtn.addEventListener('click', () => {
+            size = clamp(size + 1);
+            apply();
+            try { localStorage.setItem('hud_url_font', String(size)); } catch (e) {}
+        });
+    } catch (e) {}
 }
