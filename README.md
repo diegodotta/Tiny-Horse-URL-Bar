@@ -76,6 +76,8 @@ s
 ## Credits
 Built by [Diego Dotta](https://diego.horse) with [Windsurf](https://windsurf.com/refer?referral_code=oy0hdqpvkz4b88ng)
 
+[Braille](https://en.wikipedia.org/wiki/Braille_Patterns)
+
 Soundtrack by [Buttlee](https://onlinesequencer.net/1813336)
 
 Sound Effects by [Dragon Studio](https://pixabay.com/users/dragon-studio-38165424/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=390297) and [Pixabay](https://pixabay.com/users/freesound_community-46691455/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=103633)

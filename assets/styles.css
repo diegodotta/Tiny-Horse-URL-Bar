@@ -1,6 +1,4 @@
 /* Base layout */
-
-
 :root {
   --border-color: rgba(150,150,150,0.4);
   --background-color: rgba(150,150,150,0.1);
@@ -49,8 +47,6 @@
 }
 .tiny-horse .controls button {
     font-size: 2em;
-    background: none;
-    border: 2px solid;
     margin: 2px;
     padding: 1em;
     width: 50%;

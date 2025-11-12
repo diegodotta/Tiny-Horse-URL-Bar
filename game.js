@@ -729,9 +729,10 @@ function initHudControls() {
             const s = parseInt(localStorage.getItem('hud_url_font') || '14', 10);
             if (!isNaN(s)) size = Math.min(40, Math.max(10, s));
         } catch (e) {}
+        if (isMobile || isSafari) visible = true;
         const apply = () => {
             urlRow.style.display = visible ? 'flex' : 'none';
-            if (toggleBtn) toggleBtn.textContent = visible ? 'Hide URL Bar' : 'Show URL Bar';
+            if (toggleBtn) toggleBtn.textContent = visible ? 'Hide URL' : 'Show URL';
             urlEl.style.fontSize = size + 'px';
         };
         apply();
