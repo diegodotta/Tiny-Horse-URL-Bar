@@ -1,8 +1,34 @@
 # 𐂃 Tiny Horse, Tiny Jump — URL Bar Runner
 
-This is a tiny runner game inspired by [URL Snake](https://demian.ferrei.ro/snake) by [Demian Ferreiro](https://demian.ferrei.ro/) that renders directly into the URL hash using Braille characters. 
+## How to Play
+- You control the tiniest horse ever, just a pixel on your URL bar.
+- Start by pressing the SPACE key on your keyboard, then press SPACE again to jump over obstacles.
+- Jump over holes, spikes, boulders, snakes, and alligators, ride platforms, and avoid ceilings while the scene streams in your address bar.
+- The longer you survive, the faster it gets.
 
-Jump across holes, spikes, gators, ride platforms, and avoid ceilings while the scene streams in your address bar.
+![Gameplay](https://diego.horse/wp-content/uploads/2025/11/jump1.gif)
+
+## Behind the scenes
+This is a tiny runner game inspired by URL Snake that renders directly into the URL hash using Braille characters. When I first saw the game, I enjoyed the challenge of creating something meaningful within a space of 4 by 100 pixels.
+
+![URL Snake by Demian Ferreiro](https://diego.horse/wp-content/uploads/2025/11/url_snake.gif)
+URL Snake by Demian Ferreiro
+
+Besides that, there is no color, and the possibilities are limited to what the URL bar accepts. Not all characters are rendered; for example, the space character is converted to %20.
+
+Another great inspiration was the games in the Game Poems book, many examples discuss how a game player can be something simple like a circle or a square. In my game, the player is a pixel.
+
+After spending months working on Air Fiesta, I was a bit burned out from its complexity, so I decided to take on this little weekend challenge and build a small game for fun. It shouldn’t take more than the weekend, and here it is.
+
+Also decided to make it an open source project, I think there are other mechanics that could be used, such as those in a Space Attack or Prince of Persia style. Controlling a player jumping through platforms and seeing the game move vertically would be quite interesting.
+
+Example of a game level:
+
+⠤ ⠤⠤⠤⠤ ⠤⠤⚑⠤
+⠤⠿⠶⠤⠤⠤⠶⠶⠤ ⠤
+⠤⠦⠤⠤⠶⠤⠤⠤⠶⠶⠿
+
+Enjoy!
 
 ## Play
 - Open https://diego.horse/jump
